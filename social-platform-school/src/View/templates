@@ -1,0 +1,125 @@
+<?php
+// Home fragment included by public/index.php
+require_once __DIR__ . '/header.php';
+require_once __DIR__ . '/../../src/Controller/PostController.php';
+require_once __DIR__ . '/../../src/Controller/CommentController.php';
+require_once __DIR__ . '/../../src/Controller/ReactionController.php';
+
+$postController = new PostController($pdo);
+$commentController = new CommentController($pdo);
+$reactionController = new ReactionController($pdo);
+$posts = $postController->getAllPosts();
+?>
+	<section class="card feed-center">
+		<h2>Welcome</h2>
+		<p>Official announcements and events will appear here. Use the navigation to login, chat, or manage posts (admins).</p>
+
+		<div style="margin-top:12px">
+			<form method="GET" style="display:flex;gap:8px;align-items:center">
+				<input class="input" name="q" placeholder="Search for classmates, posts or events" value="<?php echo htmlspecialchars($q ?? ''); ?>">
+				<button class="btn" type="submit"><i class="fa fa-search"></i></button>
+			</form>
+		</div>
+
+		<div style="margin-top:18px">
+			<?php foreach ($posts as $post): ?>
+				<div class="post card">
+					<h3><?php echo htmlspecialchars($post['title']); ?></h3>
+					<?php $content = $post['content']; ?>
+					<?php
+					// find attachments and remove any raw attachment anchors from the body so links don't show up visually
+					$attachments = [];
+					if (preg_match_all('%uploads/([^\s\"\']+)%i', $content, $m)) {
+					    $attachments = $m[1];
+					}
+					// strip anchor tags that link to uploads and any [Attachment: ...] text markers
+					$content = preg_replace('%<a[^>]+href=[\"\']?uploads/[^\"\']+[^>]*>.*?<\/a>%is', '', $content);
+					$content = preg_replace('%\[Attachment:[^\]]*\]%i', '', $content);
+					?>
+					<p><?php echo nl2br(htmlspecialchars(trim($content))); ?></p>
+					<?php if (!empty($attachments)): ?>
+						<?php foreach ($attachments as $fn): $ext = strtolower(pathinfo($fn, PATHINFO_EXTENSION)); $url = 'uploads/'. $fn; ?>
+							<?php if (in_array($ext, ['jpg','jpeg','png','gif'])): ?>
+								<div class="post-media"><img src="<?php echo $url; ?>" alt="attachment" style="max-width:100%;border-radius:8px;margin-top:8px"></div>
+							<?php elseif (in_array($ext, ['mp4','webm'])): ?>
+								<div class="post-media"><video controls style="max-width:100%;border-radius:8px;margin-top:8px"><source src="<?php echo $url; ?>" type="video/<?php echo $ext; ?>">Your browser does not support the video tag.</video></div>
+							<?php else: ?>
+								<div class="kv" style="margin-top:8px">Attachment: <?php echo htmlspecialchars($fn); ?></div>
+							<?php endif; endforeach; ?>
+					<?php endif; ?>
+					<div class="kv"><?php echo htmlspecialchars($post['created_at']); ?> — <?php echo htmlspecialchars($post['author'] ?? ''); ?></div>
+					<?php $reactions = $reactionController->getReactions($post['id']); ?>
+					<?php // aggregate reactions into counts and show a summary like Facebook ?>
+					<?php
+					$counts = [];
+					$totalReacts = 0;
+					foreach ($reactions as $r) { $counts[$r['type']] = ($counts[$r['type']] ?? 0) + 1; $totalReacts++; }
+					$typeMap = ['like' => '👍', 'haha' => '😂', 'heart' => '❤️', 'sad' => '😢', 'angry' => '�'];
+					?>
+					<div class="reaction-summary" style="margin-top:8px;display:flex;align-items:center;gap:8px">
+						<?php foreach ($typeMap as $t => $emoji): if (!empty($counts[$t])): ?>
+							<span class="kv" title="<?php echo $t; ?>"><?php echo $emoji; ?> <?php echo $counts[$t]; ?></span>
+						<?php endif; endforeach; ?>
+						<?php if ($totalReacts > 0): ?>
+							<div class="kv reaction-total" id="reactions-<?php echo $post['id']; ?>" style="cursor:pointer"><?php echo $totalReacts; ?></div>
+						<?php endif; ?>
+					</div>
+					<div class="comments" style="margin-top:8px">
+						<?php $comments = $commentController->getComments($post['id']); ?>
+						<?php foreach ($comments as $c): ?>
+							<div class="comment"><strong><?php echo htmlspecialchars($c['author']); ?>:</strong> <?php echo htmlspecialchars($c['content']); ?></div>
+						<?php endforeach; ?>
+					</div>
+
+					<!-- emoji picker (hidden) -->
+					<div class="emoji-picker" data-post-id="<?php echo $post['id']; ?>" style="display:none;position:relative">
+						<button class="emoji" data-type="like">👍</button>
+						<button class="emoji" data-type="haha">😂</button>
+						<button class="emoji" data-type="heart">❤️</button>
+						<button class="emoji" data-type="sad">😢</button>
+						<button class="emoji" data-type="angry">😠</button>
+					</div>
+					<!-- bottom action row (Like / Comment) -->
+					<div class="post-bottom" style="margin-top:10px;border-top:1px solid #eef2f6;padding-top:10px;display:flex;align-items:center;justify-content:space-between">
+						<div class="left-actions" style="display:flex;gap:12px;align-items:center">
+							<button class="btn secondary icon-btn reaction-trigger" data-post-id="<?php echo $post['id']; ?>"><i class="fa fa-thumbs-up"></i> Like</button>
+							<button class="btn secondary icon-btn comment-btn" data-post-id="<?php echo $post['id']; ?>"><i class="fa fa-comment"></i> Comment</button>
+						</div>
+						<div class="right-stats kv comments-count" data-post-id="<?php echo $post['id']; ?>">
+							<?php echo count($comments); ?> comments
+						</div>
+					</div>
+					<!-- comment form (AJAX) -->
+					<form class="comment-form" data-post-id="<?php echo $post['id']; ?>" style="margin-top:8px;display:flex;gap:8px;align-items:flex-start">
+						<input type="hidden" name="action" value="add_comment">
+						<textarea name="content" placeholder="Write a comment..." class="input" style="flex:1;min-height:40px"></textarea>
+						<button class="btn" type="submit">Comment</button>
+					</form>
+				</div>
+			<?php endforeach; ?>
+		</div>
+	</section>
+
+	<aside class="right-sidebar card">
+		<h3>Latest & Composer</h3>
+		<?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+			<form method="POST" enctype="multipart/form-data" style="margin-bottom:12px">
+				<input type="hidden" name="action" value="create_post">
+				<input class="input" type="text" name="title" placeholder="Post title" required style="margin-bottom:8px">
+				<textarea name="content" class="input" placeholder="What's the announcement?" required></textarea>
+				<div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+					<label class="btn file-btn">📎 Attach<input type="file" name="attachment" style="display:none"></label>
+					<button class="btn" type="submit"><i class="fa fa-paper-plane"></i> Publish</button>
+				</div>
+			</form>
+		<?php endif; ?>
+
+		<h4>Recent Posts</h4>
+		<ul class="groups-list">
+			<?php foreach ($posts as $p): ?>
+				<li><strong><?php echo htmlspecialchars($p['title']); ?></strong><div class="kv"><?php echo htmlspecialchars($p['created_at']); ?></div></li>
+			<?php endforeach; ?>
+		</ul>
+	</aside>
+</div>
+<?php require_once __DIR__ . '/footer.php'; ?>
