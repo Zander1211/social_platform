@@ -2,7 +2,7 @@
 // Database configuration settings
 
 $host = '127.0.0.1'; // Database host (use IP to avoid socket/named-pipe issues)
-$port = 3307; // MySQL port (default XAMPP port is 3306; adjust if different)
+$port = 3306; // MySQL port (default XAMPP port is 3306; adjust if different)
 $dbname = 'social_platform'; // Database name
 $username = 'root'; // Database username (XAMPP default)
 $password = ''; // Database password (XAMPP default empty)
