@@ -185,8 +185,8 @@ function initializeFormEnhancements() {
     `;
     document.head.appendChild(labelStyle);
     
-    // Form validation feedback
-    document.querySelectorAll('form').forEach(form => {
+    // Form validation feedback (exclude comment forms)
+    document.querySelectorAll('form:not(.comment-form)').forEach(form => {
         form.addEventListener('submit', function(e) {
             const inputs = this.querySelectorAll('.form-input[required]');
             let isValid = true;

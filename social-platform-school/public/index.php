@@ -197,20 +197,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $cc = new CommentController($pdo);
         $result = $cc->addComment($_POST['post_id'], $_SESSION['user_id'], trim($_POST['content'] ?? ''));
-        // If AJAX request, return JSON with author name
-        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) || strpos($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json') !== false) {
-            header('Content-Type: application/json');
-            $author = null;
-            try {
-                $s = $pdo->prepare('SELECT name FROM users WHERE id = :id');
-                $s->execute([':id' => $_SESSION['user_id']]);
-                $r = $s->fetch(PDO::FETCH_ASSOC);
-                $author = $r['name'] ?? null;
-            } catch (Exception $e) {
-                $author = null;
-            }
-            echo json_encode(['status' => $result['status'] ?? 'error', 'author' => $author]);
-            exit();
+        // Always redirect back to the page to refresh and show the new comment
+        if ($result['status'] === 'success') {
+            $_SESSION['success'] = 'Comment added successfully!';
+        } else {
+            $_SESSION['error'] = 'Failed to add comment. Please try again.';
         }
         header('Location: index.php'); exit();
     }
@@ -580,10 +571,17 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
               if ($comments) {
                 echo '<div class="comments-list">';
                 foreach ($comments as $c) {
-                  $author = htmlspecialchars($c['author'] ?? '');
+                  $commentAuthorId = (int)($c['user_id'] ?? 0);
+                  $commentAuthorName = htmlspecialchars($c['author'] ?? '');
                   $text = nl2br(htmlspecialchars($c['content'] ?? ''));
                   echo '<div class="comment-item">';
-                  echo '<div class="comment-author">'.$author.'</div>';
+                  echo '<div class="comment-author">';
+                  if ($commentAuthorId > 0) {
+                    echo '<a href="profile.php?id='.$commentAuthorId.'" class="comment-author-link">'.$commentAuthorName.'</a>';
+                  } else {
+                    echo $commentAuthorName;
+                  }
+                  echo '</div>';
                   echo '<div class="comment-text">'.$text.'</div>';
                   echo '</div>';
                 }

@@ -215,10 +215,6 @@ if (session_status() === PHP_SESSION_NONE) {
               <div class="search-input-group">
                 <i class="fas fa-search search-icon"></i>
                 <input class="search-input" name="q" placeholder="Search posts, people, events..." value="<?php echo htmlspecialchars($_GET['q'] ?? ''); ?>">
-                <select name="scope" class="search-scope-select">
-                  <option value="all" <?php echo ($_GET['scope'] ?? 'all') === 'all' ? 'selected' : ''; ?>>All</option>
-                  <option value="users" <?php echo ($_GET['scope'] ?? '') === 'users' ? 'selected' : ''; ?>>People</option>
-                </select>
               </div>
               <button class="search-btn" type="submit">
                 <i class="fas fa-search"></i>

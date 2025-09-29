@@ -1,13 +1,26 @@
-// Comments functionality with auto-reload
-document.addEventListener('DOMContentLoaded', function() {
-    initializeComments();
-});
+// Comments functionality with page refresh
+// Prevent multiple initializations
+if (!window.commentsInitialized) {
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeComments();
+    });
+    window.commentsInitialized = true;
+}
 
 function initializeComments() {
-    // Handle comment form submissions
+    // Handle comment form submissions with more specific targeting
+    document.querySelectorAll('.comment-form').forEach(form => {
+        // Remove any existing listeners to prevent duplicates
+        form.removeEventListener('submit', handleCommentSubmissionWrapper);
+        // Add the event listener
+        form.addEventListener('submit', handleCommentSubmissionWrapper);
+    });
+    
+    // Also handle dynamically added forms
     document.addEventListener('submit', function(e) {
-        if (e.target.classList.contains('comment-form')) {
+        if (e.target.classList.contains('comment-form') && !e.target.hasAttribute('data-listener-added')) {
             e.preventDefault();
+            e.target.setAttribute('data-listener-added', 'true');
             handleCommentSubmission(e.target);
         }
     });
@@ -24,6 +37,12 @@ function initializeComments() {
     });
 }
 
+// Wrapper function for event listener removal
+function handleCommentSubmissionWrapper(e) {
+    e.preventDefault();
+    handleCommentSubmission(e.target);
+}
+
 function handleCommentSubmission(form) {
     const postId = form.dataset.postId;
     const textarea = form.querySelector('.comment-input');
@@ -35,105 +54,53 @@ function handleCommentSubmission(form) {
         return;
     }
     
+    // Prevent double submission with timestamp check
+    const now = Date.now();
+    const lastSubmit = parseInt(form.dataset.lastSubmit || '0');
+    
+    if (form.dataset.submitting === 'true' || (now - lastSubmit) < 2000) {
+        console.log('Preventing double submission');
+        return;
+    }
+    
+    // Mark form as submitting
+    form.dataset.submitting = 'true';
+    form.dataset.lastSubmit = now.toString();
+    
     // Disable form during submission
     textarea.disabled = true;
     submitBtn.disabled = true;
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
     
-    // Create form data
+    // Create form data for regular form submission
     const formData = new FormData();
     formData.append('action', 'add_comment');
     formData.append('post_id', postId);
     formData.append('content', content);
     
-    // Submit via AJAX
+    // Submit via regular form submission to refresh the page
     fetch('index.php', {
         method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
+        body: formData
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success') {
-            // Clear the form
-            textarea.value = '';
-            
-            // Add the new comment to the comments list
-            addCommentToList(postId, content, data.author || 'You');
-            
-            // Update comment count
-            updateCommentCount(postId, 1);
-            
-            showNotification('Comment added successfully!', 'success');
-        } else {
-            showNotification('Failed to add comment. Please try again.', 'error');
-        }
+    .then(response => {
+        // Refresh the page to show the new comment
+        window.location.reload();
     })
     .catch(error => {
         console.error('Error:', error);
         showNotification('An error occurred. Please try again.', 'error');
-    })
-    .finally(() => {
-        // Re-enable form
+        
+        // Re-enable form on error
+        form.dataset.submitting = 'false';
         textarea.disabled = false;
         submitBtn.disabled = false;
         submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
     });
 }
 
-function addCommentToList(postId, content, author) {
-    const commentsContainer = document.querySelector(`[data-post-id="${postId}"] .comments-list`);
-    
-    if (!commentsContainer) {
-        // Create comments list if it doesn't exist
-        const postComments = document.querySelector(`[data-post-id="${postId}"] .post-comments`);
-        if (postComments) {
-            const commentsList = document.createElement('div');
-            commentsList.className = 'comments-list';
-            postComments.insertBefore(commentsList, postComments.querySelector('.comment-form'));
-            commentsContainer = commentsList;
-        }
-    }
-    
-    if (commentsContainer) {
-        const commentElement = document.createElement('div');
-        commentElement.className = 'comment-item new-comment';
-        commentElement.innerHTML = `
-            <div class="comment-author">${escapeHtml(author)}</div>
-            <div class="comment-text">${escapeHtml(content).replace(/\n/g, '<br>')}</div>
-        `;
-        
-        // Add animation
-        commentElement.style.opacity = '0';
-        commentElement.style.transform = 'translateY(20px)';
-        
-        commentsContainer.appendChild(commentElement);
-        
-        // Animate in
-        setTimeout(() => {
-            commentElement.style.transition = 'all 0.3s ease-out';
-            commentElement.style.opacity = '1';
-            commentElement.style.transform = 'translateY(0)';
-        }, 50);
-        
-        // Remove new-comment class after animation
-        setTimeout(() => {
-            commentElement.classList.remove('new-comment');
-        }, 1000);
-    }
-}
-
-function updateCommentCount(postId, increment) {
-    const commentStats = document.querySelector(`[data-post-id="${postId}"] .comment-stats span`);
-    if (commentStats) {
-        const currentText = commentStats.textContent;
-        const currentCount = parseInt(currentText.match(/\d+/)[0]) || 0;
-        const newCount = currentCount + increment;
-        commentStats.textContent = `${newCount} comment${newCount !== 1 ? 's' : ''}`;
-    }
-}
+// Note: addCommentToList and updateCommentCount functions removed
+// since we now refresh the page instead of using AJAX updates
 
 function handleReactionClick(button) {
     const postId = button.dataset.postId;
@@ -324,11 +291,7 @@ notificationStyle.textContent = `
         color: var(--text-primary);
     }
     
-    .new-comment {
-        background: var(--primary-green-lighter);
-        border-left: 3px solid var(--primary-green);
-        padding-left: var(--space-md);
-    }
+    /* Removed new-comment styles since we now refresh the page */
     
     @keyframes slideInRight {
         from {

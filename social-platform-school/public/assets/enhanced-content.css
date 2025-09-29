@@ -204,6 +204,24 @@
   font-size: 0.875rem;
 }
 
+.comment-author-link {
+  color: var(--primary-green);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  margin: -2px -4px;
+  display: inline-block;
+  font-weight: 600;
+}
+
+.comment-author-link:hover {
+  background: var(--primary-green-lighter);
+  color: var(--primary-green-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+}
+
 .comment-text {
   color: var(--text-secondary);
   line-height: 1.6;
