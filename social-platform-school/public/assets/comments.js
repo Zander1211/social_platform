@@ -1,0 +1,389 @@
+// Comments functionality with auto-reload
+document.addEventListener('DOMContentLoaded', function() {
+    initializeComments();
+});
+
+function initializeComments() {
+    // Handle comment form submissions
+    document.addEventListener('submit', function(e) {
+        if (e.target.classList.contains('comment-form')) {
+            e.preventDefault();
+            handleCommentSubmission(e.target);
+        }
+    });
+    
+    // Handle reaction buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.reaction-trigger')) {
+            handleReactionClick(e.target.closest('.reaction-trigger'));
+        }
+        
+        if (e.target.closest('.emoji')) {
+            handleEmojiClick(e.target.closest('.emoji'));
+        }
+    });
+}
+
+function handleCommentSubmission(form) {
+    const postId = form.dataset.postId;
+    const textarea = form.querySelector('.comment-input');
+    const submitBtn = form.querySelector('.comment-submit');
+    const content = textarea.value.trim();
+    
+    if (!content) {
+        showNotification('Please enter a comment', 'warning');
+        return;
+    }
+    
+    // Disable form during submission
+    textarea.disabled = true;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('action', 'add_comment');
+    formData.append('post_id', postId);
+    formData.append('content', content);
+    
+    // Submit via AJAX
+    fetch('index.php', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            // Clear the form
+            textarea.value = '';
+            
+            // Add the new comment to the comments list
+            addCommentToList(postId, content, data.author || 'You');
+            
+            // Update comment count
+            updateCommentCount(postId, 1);
+            
+            showNotification('Comment added successfully!', 'success');
+        } else {
+            showNotification('Failed to add comment. Please try again.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('An error occurred. Please try again.', 'error');
+    })
+    .finally(() => {
+        // Re-enable form
+        textarea.disabled = false;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+    });
+}
+
+function addCommentToList(postId, content, author) {
+    const commentsContainer = document.querySelector(`[data-post-id="${postId}"] .comments-list`);
+    
+    if (!commentsContainer) {
+        // Create comments list if it doesn't exist
+        const postComments = document.querySelector(`[data-post-id="${postId}"] .post-comments`);
+        if (postComments) {
+            const commentsList = document.createElement('div');
+            commentsList.className = 'comments-list';
+            postComments.insertBefore(commentsList, postComments.querySelector('.comment-form'));
+            commentsContainer = commentsList;
+        }
+    }
+    
+    if (commentsContainer) {
+        const commentElement = document.createElement('div');
+        commentElement.className = 'comment-item new-comment';
+        commentElement.innerHTML = `
+            <div class="comment-author">${escapeHtml(author)}</div>
+            <div class="comment-text">${escapeHtml(content).replace(/\n/g, '<br>')}</div>
+        `;
+        
+        // Add animation
+        commentElement.style.opacity = '0';
+        commentElement.style.transform = 'translateY(20px)';
+        
+        commentsContainer.appendChild(commentElement);
+        
+        // Animate in
+        setTimeout(() => {
+            commentElement.style.transition = 'all 0.3s ease-out';
+            commentElement.style.opacity = '1';
+            commentElement.style.transform = 'translateY(0)';
+        }, 50);
+        
+        // Remove new-comment class after animation
+        setTimeout(() => {
+            commentElement.classList.remove('new-comment');
+        }, 1000);
+    }
+}
+
+function updateCommentCount(postId, increment) {
+    const commentStats = document.querySelector(`[data-post-id="${postId}"] .comment-stats span`);
+    if (commentStats) {
+        const currentText = commentStats.textContent;
+        const currentCount = parseInt(currentText.match(/\d+/)[0]) || 0;
+        const newCount = currentCount + increment;
+        commentStats.textContent = `${newCount} comment${newCount !== 1 ? 's' : ''}`;
+    }
+}
+
+function handleReactionClick(button) {
+    const postId = button.dataset.postId;
+    const emojiPicker = document.querySelector(`[data-post-id="${postId}"] .emoji-picker`);
+    
+    if (emojiPicker) {
+        const isVisible = emojiPicker.style.display !== 'none';
+        
+        // Hide all other emoji pickers
+        document.querySelectorAll('.emoji-picker').forEach(picker => {
+            picker.style.display = 'none';
+        });
+        
+        // Toggle this one
+        emojiPicker.style.display = isVisible ? 'none' : 'flex';
+        
+        if (!isVisible) {
+            // Position the picker
+            const rect = button.getBoundingClientRect();
+            emojiPicker.style.position = 'absolute';
+            emojiPicker.style.top = (rect.top - emojiPicker.offsetHeight - 10) + 'px';
+            emojiPicker.style.left = rect.left + 'px';
+        }
+    }
+}
+
+function handleEmojiClick(emoji) {
+    const emojiPicker = emoji.closest('.emoji-picker');
+    const postId = emojiPicker.dataset.postId;
+    const reactionType = emoji.dataset.type;
+    
+    // Hide the picker
+    emojiPicker.style.display = 'none';
+    
+    // Send reaction
+    const formData = new FormData();
+    formData.append('action', 'react');
+    formData.append('post_id', postId);
+    formData.append('type', reactionType);
+    
+    fetch('index.php', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.ok) {
+            // Update reaction count
+            updateReactionCount(postId, 1);
+            showNotification('Reaction added!', 'success', 2000);
+            
+            // Add visual feedback
+            emoji.style.transform = 'scale(1.3)';
+            setTimeout(() => {
+                emoji.style.transform = 'scale(1)';
+            }, 200);
+        } else {
+            showNotification('Failed to add reaction', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('An error occurred', 'error');
+    });
+}
+
+function updateReactionCount(postId, increment) {
+    const reactionStats = document.querySelector(`[data-post-id="${postId}"] .reaction-stats span`);
+    if (reactionStats) {
+        const currentText = reactionStats.textContent;
+        if (currentText.includes('No reactions')) {
+            reactionStats.textContent = '1 reaction';
+        } else {
+            const currentCount = parseInt(currentText.match(/\d+/)[0]) || 0;
+            const newCount = currentCount + increment;
+            reactionStats.textContent = `${newCount} reaction${newCount !== 1 ? 's' : ''}`;
+        }
+    }
+}
+
+function showNotification(message, type = 'info', duration = 3000) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <i class="fas fa-${getNotificationIcon(type)}"></i>
+            <span>${message}</span>
+        </div>
+        <button class="notification-close">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    // Style the notification
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--bg-primary);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-xl);
+        padding: 1rem 1.5rem;
+        z-index: 3000;
+        max-width: 400px;
+        border-left: 4px solid var(--${getNotificationColor(type)});
+        animation: slideInRight 0.3s ease-out;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove
+    const autoRemove = setTimeout(() => {
+        removeNotification(notification);
+    }, duration);
+    
+    // Manual close
+    notification.querySelector('.notification-close').addEventListener('click', () => {
+        clearTimeout(autoRemove);
+        removeNotification(notification);
+    });
+}
+
+function removeNotification(notification) {
+    notification.style.animation = 'slideOutRight 0.3s ease-out';
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+        }
+    }, 300);
+}
+
+function getNotificationIcon(type) {
+    const icons = {
+        info: 'info-circle',
+        success: 'check-circle',
+        warning: 'exclamation-triangle',
+        error: 'exclamation-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+
+function getNotificationColor(type) {
+    const colors = {
+        info: 'primary-green',
+        success: 'primary-green',
+        warning: 'secondary-orange',
+        error: 'secondary-red'
+    };
+    return colors[type] || 'primary-green';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Add notification styles
+const notificationStyle = document.createElement('style');
+notificationStyle.textContent = `
+    .notification-content {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1;
+    }
+    
+    .notification-close {
+        background: none;
+        border: none;
+        color: var(--text-tertiary);
+        cursor: pointer;
+        padding: 0.25rem;
+        border-radius: var(--radius-sm);
+        transition: all var(--transition-fast);
+    }
+    
+    .notification-close:hover {
+        background: var(--gray-100);
+        color: var(--text-primary);
+    }
+    
+    .new-comment {
+        background: var(--primary-green-lighter);
+        border-left: 3px solid var(--primary-green);
+        padding-left: var(--space-md);
+    }
+    
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+    @keyframes slideOutRight {
+        from {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        to {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+    }
+    
+    .emoji-picker {
+        display: none;
+        gap: var(--space-sm);
+        padding: var(--space-sm);
+        background: var(--bg-primary);
+        border: 1px solid var(--gray-200);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        z-index: 1000;
+        position: absolute;
+    }
+    
+    .emoji {
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: var(--space-xs);
+        border-radius: var(--radius-md);
+        transition: all var(--transition-fast);
+    }
+    
+    .emoji:hover {
+        background: var(--gray-100);
+        transform: scale(1.1);
+    }
+`;
+document.head.appendChild(notificationStyle);
+
+// Close emoji pickers when clicking outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.emoji-picker') && !e.target.closest('.reaction-trigger')) {
+        document.querySelectorAll('.emoji-picker').forEach(picker => {
+            picker.style.display = 'none';
+        });
+    }
+});

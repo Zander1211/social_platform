@@ -19,7 +19,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, var(--primary-blue), var(--secondary-purple), var(--secondary-green));
+  background: linear-gradient(90deg, var(--primary-green), var(--secondary-teal), var(--secondary-lime));
   opacity: 0;
   transition: opacity var(--transition-normal);
 }
@@ -48,7 +48,7 @@
 
 .post-author {
   font-weight: 600;
-  color: var(--primary-blue);
+  color: var(--primary-green);
   font-size: 1rem;
 }
 
@@ -67,7 +67,7 @@
   color: var(--text-primary);
   margin-bottom: var(--space-md);
   line-height: 1.4;
-  background: linear-gradient(135deg, var(--text-primary), var(--primary-blue));
+  background: linear-gradient(135deg, var(--text-primary), var(--primary-green));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -142,13 +142,13 @@
 }
 
 .action-btn:hover {
-  background: var(--primary-blue-lighter);
-  color: var(--primary-blue-dark);
+  background: var(--primary-green-lighter);
+  color: var(--primary-green-dark);
   transform: translateY(-1px);
 }
 
 .action-btn.active {
-  background: var(--primary-blue);
+  background: var(--primary-green);
   color: var(--text-inverse);
 }
 
@@ -169,7 +169,7 @@
   border-radius: var(--radius-lg);
   margin-bottom: var(--space-md);
   background: var(--gray-50);
-  border-left: 4px solid var(--primary-blue);
+  border-left: 4px solid var(--primary-green);
   transition: all var(--transition-fast);
 }
 
@@ -180,7 +180,7 @@
 
 .comment-author {
   font-weight: 600;
-  color: var(--primary-blue);
+  color: var(--primary-green);
   margin-bottom: var(--space-xs);
   font-size: 0.875rem;
 }
@@ -214,13 +214,13 @@
 
 .comment-input:focus {
   outline: none;
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: var(--primary-green);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .comment-submit {
   padding: var(--space-md);
-  background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark));
+  background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
   color: var(--text-inverse);
   border: none;
   border-radius: 50%;
@@ -249,7 +249,7 @@
   justify-content: space-between;
   margin: calc(-1 * var(--space-lg)) calc(-1 * var(--space-xl)) var(--space-lg);
   padding: var(--space-lg) var(--space-xl);
-  background: linear-gradient(135deg, var(--primary-blue), var(--secondary-purple));
+  background: linear-gradient(135deg, var(--primary-green), var(--secondary-teal));
   color: var(--text-inverse);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
@@ -296,7 +296,7 @@
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, var(--primary-blue), var(--secondary-green));
+  background: linear-gradient(90deg, var(--primary-green), var(--secondary-teal));
   opacity: 0;
   transition: opacity var(--transition-normal);
 }
@@ -325,7 +325,7 @@
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary-blue), var(--secondary-purple));
+  background: linear-gradient(135deg, var(--primary-green), var(--secondary-teal));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -365,7 +365,7 @@
 }
 
 .person-name a:hover {
-  color: var(--primary-blue);
+  color: var(--primary-green);
 }
 
 .person-role {
@@ -393,7 +393,7 @@
 
 /* Enhanced Content Container */
 .content-container {
-  max-width: 1200px;
+  max-width: 900px;
   margin: 0 auto;
   padding: 0;
 }
@@ -411,7 +411,7 @@
 .posts-container {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xl);
+  gap: var(--space-lg);
 }
 
 /* Enhanced No Results */
@@ -441,7 +441,7 @@
 }
 
 .no-results-text a {
-  color: var(--primary-blue);
+  color: var(--primary-green);
   font-weight: 500;
 }
 
@@ -461,7 +461,7 @@
 }
 
 .results-count a {
-  color: var(--primary-blue);
+  color: var(--primary-green);
   font-weight: 500;
 }
 
@@ -511,30 +511,75 @@
 }
 
 .btn.primary.small {
-  background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark));
+  background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
   color: var(--text-inverse);
 }
 
 /* Enhanced Attachments */
-.post-attachments img {
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
-  transition: all var(--transition-normal);
+.post-attachments {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--gray-100);
 }
 
-.post-attachments img:hover {
+.attachment-item {
+  margin: var(--space-md) 0;
+}
+
+.attachment-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  border: 1px solid var(--gray-200);
+}
+
+.attachment-image:hover {
   transform: scale(1.02);
   box-shadow: var(--shadow-lg);
 }
 
-.post-attachments video {
+.attachment-video {
+  max-width: 100%;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
+  border: 1px solid var(--gray-200);
 }
 
-.post-attachments audio {
+.attachment-audio {
   width: 100%;
   border-radius: var(--radius-md);
+  background: var(--gray-50);
+}
+
+.attachment-file {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-fast);
+}
+
+.attachment-file:hover {
+  background: var(--gray-100);
+  border-color: var(--primary-green);
+}
+
+.attachment-file i {
+  color: var(--text-tertiary);
+  font-size: 1.25rem;
+}
+
+.file-name {
+  flex: 1;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.9rem;
 }
 
 /* Enhanced Success/Error Messages */
@@ -716,7 +761,7 @@
 }
 
 .post-card:hover .post-title {
-  background: linear-gradient(135deg, var(--primary-blue), var(--secondary-purple));
+  background: linear-gradient(135deg, var(--primary-green), var(--secondary-teal));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -730,7 +775,7 @@
 /* Enhanced Focus States */
 .post-card:focus-within,
 .person-card:focus-within {
-  outline: 3px solid var(--primary-blue);
+  outline: 3px solid var(--primary-green);
   outline-offset: 2px;
 }
 

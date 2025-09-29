@@ -34,7 +34,7 @@
 }
 
 .sidebar-header {
-  background: linear-gradient(135deg, #1e40af 0%, #3730a3 100%);
+  background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-dark) 100%);
   position: relative;
   overflow: hidden;
 }
@@ -112,10 +112,10 @@
 }
 
 .nav-item.active {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-dark) 100%);
   box-shadow: 
-    0 4px 6px -1px rgba(59, 130, 246, 0.3),
-    0 2px 4px -1px rgba(59, 130, 246, 0.2),
+    0 4px 6px -1px rgba(16, 185, 129, 0.3),
+    0 2px 4px -1px rgba(16, 185, 129, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
 }
@@ -147,7 +147,7 @@
 }
 
 .page-title {
-  background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, var(--primary-green) 0%, var(--secondary-teal) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -203,18 +203,18 @@
 
 .search-input:focus {
   background: rgba(255, 255, 255, 0.95);
-  border-color: #3b82f6;
+  border-color: var(--primary-green);
   box-shadow: 
-    0 0 0 3px rgba(59, 130, 246, 0.1),
+    0 0 0 3px rgba(16, 185, 129, 0.1),
     0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .search-btn,
 .people-btn {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-dark) 100%);
   box-shadow: 
-    0 4px 6px -1px rgba(59, 130, 246, 0.3),
-    0 2px 4px -1px rgba(59, 130, 246, 0.2);
+    0 4px 6px -1px rgba(16, 185, 129, 0.3),
+    0 2px 4px -1px rgba(16, 185, 129, 0.2);
   position: relative;
   overflow: hidden;
 }

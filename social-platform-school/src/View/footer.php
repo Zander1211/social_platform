@@ -25,6 +25,30 @@
 
   <script src="assets/app.js"></script>
   <script src="assets/news-feed-dashboard.js"></script>
+  <script src="assets/comments.js"></script>
+  <script>
+    // User dropdown functionality
+    function toggleUserDropdown() {
+      const dropdown = document.getElementById('userDropdownMenu');
+      const button = document.querySelector('.user-profile-btn');
+      
+      if (dropdown && button) {
+        dropdown.classList.toggle('show');
+        button.classList.toggle('active');
+      }
+    }
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+      const dropdown = document.getElementById('userDropdownMenu');
+      const button = document.querySelector('.user-profile-btn');
+      
+      if (dropdown && button && !button.contains(e.target)) {
+        dropdown.classList.remove('show');
+        button.classList.remove('active');
+      }
+    });
+  </script>
   <script>
     // expose current user id for messenger rendering of "me"
     window.__ME__ = <?php echo isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : 'null'; ?>;

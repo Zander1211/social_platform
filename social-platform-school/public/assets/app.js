@@ -175,12 +175,12 @@ function initializeFormEnhancements() {
         .floating-label.active {
             top: 0;
             font-size: 0.8rem;
-            color: var(--primary-blue);
+            color: var(--primary-green);
             font-weight: 600;
         }
         
         .form-input:focus + .floating-label {
-            color: var(--primary-blue);
+            color: var(--primary-green);
         }
     `;
     document.head.appendChild(labelStyle);
@@ -332,12 +332,12 @@ function getNotificationIcon(type) {
 
 function getNotificationColor(type) {
     const colors = {
-        info: 'primary-blue',
-        success: 'secondary-green',
+        info: 'primary-green',
+        success: 'primary-green',
         warning: 'secondary-orange',
         error: 'secondary-red'
     };
-    return colors[type] || 'primary-blue';
+    return colors[type] || 'primary-green';
 }
 
 // Theme System

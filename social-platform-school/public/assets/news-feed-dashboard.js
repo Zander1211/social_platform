@@ -520,8 +520,8 @@ heartBeatStyle.textContent = `
     }
     
     mark {
-        background: var(--primary-blue-lighter);
-        color: var(--primary-blue-dark);
+        background: var(--primary-green-lighter);
+        color: var(--primary-green-dark);
         padding: 0.1em 0.2em;
         border-radius: 0.2em;
     }

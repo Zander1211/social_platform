@@ -2,17 +2,25 @@
 
 /* CSS Variables for consistent theming */
 :root {
-  /* Primary Colors */
-  --primary-blue: #3b82f6;
-  --primary-blue-dark: #2563eb;
-  --primary-blue-light: #60a5fa;
-  --primary-blue-lighter: #dbeafe;
+  /* Primary Colors - Green Theme */
+  --primary-green: #10b981;
+  --primary-green-dark: #059669;
+  --primary-green-light: #34d399;
+  --primary-green-lighter: #d1fae5;
+  
+  /* Legacy blue variables mapped to green for compatibility */
+  --primary-blue: #10b981;
+  --primary-blue-dark: #059669;
+  --primary-blue-light: #34d399;
+  --primary-blue-lighter: #d1fae5;
   
   /* Secondary Colors */
-  --secondary-purple: #8b5cf6;
-  --secondary-green: #10b981;
+  --secondary-teal: #14b8a6;
+  --secondary-lime: #65a30d;
   --secondary-orange: #f59e0b;
   --secondary-red: #ef4444;
+  --secondary-purple: #8b5cf6;
+  --secondary-green: #10b981;
   
   /* Neutral Colors */
   --gray-50: #f9fafb;
@@ -26,11 +34,12 @@
   --gray-800: #1f2937;
   --gray-900: #111827;
   
-  /* Background Colors */
+  /* Background Colors - Light Green Theme */
   --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-tertiary: #f1f5f9;
-  --bg-dark: #0f172a;
+  --bg-secondary: #f0fdf4;
+  --bg-tertiary: #ecfdf5;
+  --bg-accent: #d1fae5;
+  --bg-dark: #064e3b;
   
   /* Text Colors */
   --text-primary: #1e293b;
@@ -142,7 +151,7 @@ a:hover {
 .sidebar-header {
   padding: var(--space-xl) var(--space-lg);
   border-bottom: 1px solid var(--gray-200);
-  background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+  background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-dark) 100%);
 }
 
 .sidebar-logo {
@@ -266,27 +275,51 @@ a:hover {
   background: var(--gray-50);
 }
 
-.user-info {
+/* User Profile Dropdown */
+.user-profile-dropdown {
+  position: relative;
+}
+
+.user-profile-btn {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: var(--space-sm);
   padding: var(--space-sm);
   background: var(--bg-primary);
+  border: 1px solid var(--gray-200);
   border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
   box-shadow: var(--shadow-sm);
-  margin-bottom: var(--space-sm);
+}
+
+.user-profile-btn:hover {
+  background: var(--gray-50);
+  border-color: var(--primary-blue);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .user-avatar {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, var(--primary-blue), var(--secondary-purple));
+  background: linear-gradient(135deg, var(--primary-green), var(--secondary-teal));
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-inverse);
   font-size: 0.9rem;
+  font-weight: 600;
+  overflow: hidden;
+}
+
+.user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .user-details {
@@ -297,6 +330,7 @@ a:hover {
   font-weight: 600;
   font-size: 0.8rem;
   color: var(--text-primary);
+  margin-bottom: 2px;
 }
 
 .user-role {
@@ -305,14 +339,78 @@ a:hover {
   text-transform: capitalize;
 }
 
-.logout-btn {
-  color: var(--secondary-red) !important;
-  margin: 0;
+.dropdown-arrow {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  transition: transform var(--transition-fast);
 }
 
-.logout-btn:hover {
-  background: rgba(239, 68, 68, 0.1) !important;
-  color: var(--secondary-red) !important;
+.user-profile-btn.active .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu */
+.user-dropdown-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  margin-bottom: var(--space-sm);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all var(--transition-fast);
+  z-index: 1000;
+}
+
+.user-dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.8rem;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm);
+  margin: 2px;
+}
+
+.dropdown-item:hover {
+  background: var(--gray-50);
+  color: var(--text-primary);
+  transform: translateX(2px);
+}
+
+.dropdown-item i {
+  width: 14px;
+  text-align: center;
+  font-size: 0.75rem;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--gray-200);
+  margin: var(--space-xs) 0;
+}
+
+.logout-item {
+  color: var(--secondary-red);
+}
+
+.logout-item:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--secondary-red);
 }
 
 .auth-buttons {
@@ -372,7 +470,7 @@ a:hover {
   font-size: 1.75rem;
   font-weight: 700;
   color: var(--text-primary);
-  background: linear-gradient(135deg, var(--primary-blue), var(--secondary-purple));
+  background: linear-gradient(135deg, var(--primary-green), var(--secondary-teal));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -426,7 +524,7 @@ a:hover {
 
 .search-btn, .people-btn {
   padding: var(--space-md) var(--space-lg);
-  background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-dark));
+  background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
   color: var(--text-inverse);
   border: none;
   border-radius: var(--radius-lg);
@@ -445,7 +543,7 @@ a:hover {
 
 .create-post-btn {
   padding: var(--space-md) var(--space-lg);
-  background: linear-gradient(135deg, var(--secondary-green), #059669);
+  background: linear-gradient(135deg, var(--secondary-lime), #4d7c0f);
   color: var(--text-inverse);
   border: none;
   border-radius: var(--radius-lg);
@@ -508,7 +606,7 @@ a:hover {
 /* Simple Layout (for login/register pages) */
 .simple-layout {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--primary-blue-lighter) 0%, var(--secondary-purple) 100%);
+  background: linear-gradient(135deg, var(--primary-green-lighter) 0%, var(--secondary-teal) 100%);
   display: flex;
   align-items: center;
   justify-content: center;

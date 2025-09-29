@@ -25,6 +25,7 @@ if (session_status() === PHP_SESSION_NONE) {
   <link rel="stylesheet" href="assets/enhanced-content.css?v=<?php echo time(); ?>">
   <link rel="stylesheet" href="assets/dashboard-enhancements.css?v=<?php echo time(); ?>">
   <link rel="stylesheet" href="assets/pages-enhancements.css?v=<?php echo time(); ?>">
+  <link rel="stylesheet" href="assets/chat.css?v=<?php echo time(); ?>">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
@@ -128,19 +129,46 @@ if (session_status() === PHP_SESSION_NONE) {
       <!-- User Section -->
       <div class="sidebar-footer">
         <?php if (isset($_SESSION['user_id'])): ?>
-        <div class="user-info">
-          <div class="user-avatar">
-            <i class="fas fa-user"></i>
-          </div>
-          <div class="user-details">
-            <div class="user-name"><?php echo htmlspecialchars($_SESSION['name'] ?? 'User'); ?></div>
-            <div class="user-role"><?php echo htmlspecialchars($_SESSION['role'] ?? 'Student'); ?></div>
+        <?php
+        // Get user avatar
+        $userAvatar = null;
+        $avatarGlob = glob(__DIR__ . '/../../public/uploads/avatar_' . $_SESSION['user_id'] . '.*');
+        if ($avatarGlob) {
+          $userAvatar = 'uploads/' . basename($avatarGlob[0]);
+        }
+        ?>
+        <div class="user-profile-dropdown">
+          <button class="user-profile-btn" onclick="toggleUserDropdown()">
+            <div class="user-avatar">
+              <?php if ($userAvatar): ?>
+                <img src="<?php echo $userAvatar; ?>" alt="<?php echo htmlspecialchars($_SESSION['name'] ?? 'User'); ?>'s avatar">
+              <?php else: ?>
+                <?php echo strtoupper(substr($_SESSION['name'] ?? 'U', 0, 1)); ?>
+              <?php endif; ?>
+            </div>
+            <div class="user-details">
+              <div class="user-name"><?php echo htmlspecialchars($_SESSION['name'] ?? 'User'); ?></div>
+              <div class="user-role"><?php echo htmlspecialchars($_SESSION['role'] ?? 'Student'); ?></div>
+            </div>
+            <i class="fas fa-chevron-down dropdown-arrow"></i>
+          </button>
+          
+          <div class="user-dropdown-menu" id="userDropdownMenu">
+            <a href="profile.php" class="dropdown-item">
+              <i class="fas fa-user"></i>
+              <span>My Profile</span>
+            </a>
+            <a href="profile.php?edit=1" class="dropdown-item">
+              <i class="fas fa-edit"></i>
+              <span>Edit Profile</span>
+            </a>
+            <div class="dropdown-divider"></div>
+            <a href="logout.php" class="dropdown-item logout-item">
+              <i class="fas fa-sign-out-alt"></i>
+              <span>Logout</span>
+            </a>
           </div>
         </div>
-        <a href="logout.php" class="nav-item logout-btn">
-          <i class="fas fa-sign-out-alt"></i>
-          <span class="nav-label">Logout</span>
-        </a>
         <?php else: ?>
         <div class="auth-buttons">
           <a href="login.php" class="nav-item">
@@ -198,11 +226,13 @@ if (session_status() === PHP_SESSION_NONE) {
               </button>
             </form>
           </div>
-          <?php if (!empty($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+          <?php if (!empty($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin'): ?>
           <button class="create-post-btn" onclick="openPostComposer()">
             <i class="fas fa-plus"></i>
             <span>Create Post</span>
           </button>
+          <!-- Debug info for admin -->
+          <small style="color: #666; font-size: 10px; margin-left: 10px;">Admin: <?php echo $_SESSION['role']; ?></small>
           <?php endif; ?>
         </div>
       </header>

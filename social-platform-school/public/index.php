@@ -71,34 +71,35 @@ function renderAttachment($attachmentPath) {
         }
     }
     
-    $output = '<div style="margin:8px 0">';
+    $output = '<div class="attachment-item">';
     
     if (in_array($ext, ['png','jpg','jpeg','gif','webp'])) {
         // Image
         $output .= '<img src="'.htmlspecialchars($attachmentPath).'" alt="'.htmlspecialchars($filename).'" 
-                   style="max-width:100%;height:auto;border:1px solid #eee;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);cursor:pointer;" 
+                   class="attachment-image" 
                    onclick="window.open(this.src, \'_blank\')" 
                    title="Click to view full size">';
     } elseif (in_array($ext, ['mp4','webm','ogg','ogv'])) {
         // Video
         $type = ($ext === 'ogv') ? 'ogg' : $ext;
-        $output .= '<video controls style="max-width:100%;border:1px solid #eee;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1)">
+        $output .= '<video controls class="attachment-video">
                 <source src="'.htmlspecialchars($attachmentPath).'" type="video/'.$type.'">
                 Your browser does not support the video tag.
               </video>';
     } elseif (in_array($ext, ['mp3','wav','ogg'])) {
         // Audio
-        $output .= '<audio controls style="width:100%;border-radius:4px">
+        $output .= '<audio controls class="attachment-audio">
                 <source src="'.htmlspecialchars($attachmentPath).'">
                 Your browser does not support the audio tag.
               </audio>';
     } else {
         // Other files
-        $output .= '<div style="padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;align-items:center;gap:8px">
-                <i class="fa fa-file" style="color:#6b7280"></i>
-                <span style="flex:1;color:#374151">'.htmlspecialchars($filename).'</span>
-                <a class="btn secondary" href="'.htmlspecialchars($attachmentPath).'" target="_blank" rel="noopener" 
-                   style="font-size:12px;padding:4px 8px">Download</a>
+        $output .= '<div class="attachment-file">
+                <i class="fas fa-file"></i>
+                <span class="file-name">'.htmlspecialchars($filename).'</span>
+                <a class="btn btn-secondary btn-sm" href="'.htmlspecialchars($attachmentPath).'" target="_blank" rel="noopener">
+                   <i class="fas fa-download"></i> Download
+                </a>
               </div>';
     }
     
@@ -111,8 +112,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action']) && $_POST['action'] === 'create_post') {
         // require login
         if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit(); }
+        
+        // Debug logging
+        error_log('Create post attempt by user: ' . $_SESSION['user_id'] . ' (' . ($_SESSION['role'] ?? 'no role') . ')');
+        
         $title = trim($_POST['title'] ?? '');
         $content = trim($_POST['content'] ?? '');
+        
+        // Validate input
+        if (empty($title) && empty($content)) {
+            $_SESSION['error'] = 'Please provide a title or content for your post.';
+            header('Location: index.php'); exit();
+        }
+        
         // handle optional file upload
         if (!empty($_FILES['attachment']['name'])) {
             $up = $_FILES['attachment'];
@@ -153,12 +165,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['error'] = 'Failed to upload attachment. Please check file permissions and try again.';
             }
         }
-        $pc = new PostController($pdo);
-        $pc->createPost([
-            'user_id' => $_SESSION['user_id'],
-            'title' => $title,
-            'content' => $content,
-        ]);
+        
+        try {
+            $pc = new PostController($pdo);
+            $postId = $pc->createPost([
+                'user_id' => $_SESSION['user_id'],
+                'title' => $title,
+                'content' => $content,
+            ]);
+            
+            if ($postId) {
+                $_SESSION['success'] = 'Post created successfully!';
+                error_log('Post created successfully with ID: ' . $postId);
+            } else {
+                $_SESSION['error'] = 'Failed to create post. Please try again.';
+                error_log('Post creation failed - no ID returned');
+            }
+        } catch (Exception $e) {
+            $_SESSION['error'] = 'Error creating post: ' . $e->getMessage();
+            error_log('Post creation error: ' . $e->getMessage());
+        }
+        
         header('Location: index.php'); exit();
     }
 
@@ -264,7 +291,7 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     <?php endif; ?>
     
     <!-- Post Composer Modal (for admins) -->
-    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+    <?php if (isset($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin'): ?>
     <div id="postComposerModal" class="post-composer-modal" style="display: none;">
         <div class="modal-overlay" onclick="closePostComposer()"></div>
         <div class="modal-content">
@@ -649,8 +676,8 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
         const urlParams = new URLSearchParams(window.location.search);
         const currentScope = urlParams.get('scope');
         if (currentScope === 'users' && peopleBtn) {
-            peopleBtn.style.background = 'linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%)';
-            peopleBtn.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.3)';
+            peopleBtn.style.background = 'linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-dark) 100%)';
+            peopleBtn.style.boxShadow = '0 0 0 2px rgba(16, 185, 129, 0.3)';
         }
     });
     
@@ -862,7 +889,7 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     </script>
     
     <!-- Post Composer Modal Styles and Scripts -->
-    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+    <?php if (isset($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin'): ?>
     <style>
     /* Post Composer Modal Styles */
     .post-composer-modal {
@@ -931,7 +958,7 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     }
     
     .modal-header h3 i {
-        color: #3b82f6;
+        color: var(--primary-green);
     }
     
     .modal-close {
@@ -977,8 +1004,8 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     
     .form-group .input:focus {
         outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        border-color: var(--primary-green);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
     }
     
     .form-group textarea.input {
@@ -1013,15 +1040,15 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     }
     
     .form-actions .btn.primary {
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        background: linear-gradient(135deg, var(--primary-green) 0%, var(--primary-green-dark) 100%);
         color: white;
         border: none;
     }
     
     .form-actions .btn.primary:hover {
-        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+        background: linear-gradient(135deg, var(--primary-green-dark) 0%, #047857 100%);
         transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
     
     .form-actions .btn.secondary {
@@ -1064,18 +1091,25 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     <script>
     // Post Composer Modal Functions
     function openPostComposer() {
+        console.log('openPostComposer called');
         const modal = document.getElementById('postComposerModal');
+        console.log('Modal element:', modal);
+        
         if (modal) {
+            console.log('Opening modal...');
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
             
             // Focus on title input
             setTimeout(() => {
                 const titleInput = document.getElementById('post-title');
+                console.log('Title input:', titleInput);
                 if (titleInput) {
                     titleInput.focus();
                 }
             }, 100);
+        } else {
+            console.error('Modal not found! Check if user is admin and modal is rendered.');
         }
     }
     
@@ -1097,6 +1131,20 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closePostComposer();
+        }
+    });
+    
+    // Check if modal exists on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('postComposerModal');
+        console.log('Modal check on page load:', modal ? 'Found' : 'Not found');
+        
+        // Check if create post button exists
+        const createBtn = document.querySelector('.create-post-btn');
+        console.log('Create post button:', createBtn ? 'Found' : 'Not found');
+        
+        if (createBtn && !modal) {
+            console.error('Create post button exists but modal is missing!');
         }
     });
     
