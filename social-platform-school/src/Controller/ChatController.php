@@ -8,6 +8,31 @@ class ChatController
     {
         $this->pdo = $pdo;
     }
+    
+    public function getGroupInfo($groupId) {
+        $stmt = $this->pdo->prepare("SELECT cr.*, u.name as creator_name FROM chat_rooms cr LEFT JOIN users u ON cr.created_by = u.id WHERE cr.id = ? AND cr.is_group = 1");
+        $stmt->execute([$groupId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+    
+    public function getGroupMembers($groupId) {
+        $stmt = $this->pdo->prepare("
+            SELECT u.id as user_id, u.name 
+            FROM chat_members cm 
+            JOIN users u ON cm.user_id = u.id 
+            WHERE cm.chat_id = ? 
+            ORDER BY u.name ASC
+        ");
+        $stmt->execute([$groupId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    public function getMessageCount($groupId) {
+        $stmt = $this->pdo->prepare("SELECT COUNT(*) as count FROM messages WHERE chat_id = ?");
+        $stmt->execute([$groupId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result ? $result['count'] : 0;
+    }
 
     public function sendMessage($chatId, $senderId, $content)
     {
@@ -41,30 +66,65 @@ class ChatController
 
     public function getActiveUsers()
     {
-        $stmt = $this->pdo->query('SELECT id, name FROM users WHERE is_online = 1');
-        return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        try {
+            // Try to get online users first, fallback to all users if is_online column doesn't exist
+            $stmt = $this->pdo->query('SELECT id, name, role FROM users WHERE is_online = 1 ORDER BY name');
+            $users = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            
+            // If no online users or is_online column doesn't exist, get all users
+            if (empty($users)) {
+                $stmt = $this->pdo->query('SELECT id, name, role FROM users ORDER BY name');
+                $users = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            }
+            
+            return $users;
+        } catch (PDOException $e) {
+            // If is_online column doesn't exist, fall back to all users
+            try {
+                $stmt = $this->pdo->query('SELECT id, name, role FROM users ORDER BY name');
+                return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            } catch (PDOException $e2) {
+                return [];
+            }
+        }
     }
 
     // Helpers for a default/global chat room (chat_id = 1)
     // Group chat helpers
     public function createGroup($name, $creatorId)
     {
-        $stmt = $this->pdo->prepare('INSERT INTO chat_rooms (name, is_group, created_by, created_at) VALUES (:name, 1, :creator, NOW())');
-        $ok = $stmt->execute([':name' => $name, ':creator' => $creatorId]);
-        $roomId = $ok ? $this->pdo->lastInsertId() : false;
-        // if chat_members table exists, insert creator as member
-        if ($roomId) {
-            try {
-                $check = $this->pdo->query("SHOW TABLES LIKE 'chat_members'");
-                if ($check && $check->rowCount() > 0) {
-                    $ins = $this->pdo->prepare('INSERT INTO chat_members (chat_id, user_id, joined_at) VALUES (:chat_id, :user_id, NOW())');
-                    $ins->execute([':chat_id' => $roomId, ':user_id' => $creatorId]);
-                }
-            } catch (Exception $e) {
-                // ignore - best effort
+        try {
+            $stmt = $this->pdo->prepare('INSERT INTO chat_rooms (name, is_group, created_by, created_at) VALUES (:name, 1, :creator, NOW())');
+            $ok = $stmt->execute([':name' => $name, ':creator' => $creatorId]);
+            
+            if (!$ok) {
+                error_log("Failed to insert group: " . print_r($stmt->errorInfo(), true));
+                return false;
             }
+            
+            $roomId = $this->pdo->lastInsertId();
+            error_log("Group created successfully with ID: $roomId");
+            
+            // if chat_members table exists, insert creator as member
+            if ($roomId) {
+                try {
+                    $check = $this->pdo->query("SHOW TABLES LIKE 'chat_members'");
+                    if ($check && $check->rowCount() > 0) {
+                        $ins = $this->pdo->prepare('INSERT INTO chat_members (chat_id, user_id, joined_at) VALUES (:chat_id, :user_id, NOW())');
+                        $ins->execute([':chat_id' => $roomId, ':user_id' => $creatorId]);
+                        error_log("Creator added to group members");
+                    } else {
+                        error_log("chat_members table does not exist");
+                    }
+                } catch (Exception $e) {
+                    error_log("Error adding creator to members: " . $e->getMessage());
+                }
+            }
+            return $roomId;
+        } catch (Exception $e) {
+            error_log("Error creating group: " . $e->getMessage());
+            return false;
         }
-        return $roomId;
     }
 
     public function listGroups()
@@ -189,39 +249,33 @@ class ChatController
         }
     }
 
-    // List rooms for a given user (groups + DMs) - only rooms with messages
+    // List rooms for a given user (groups + DMs) - including empty rooms
     public function listUserRooms($userId)
     {
         try {
             $check = $this->pdo->query("SHOW TABLES LIKE 'chat_members'");
             if ($check && $check->rowCount() > 0) {
                 $stmt = $this->pdo->prepare('
-                    SELECT cr.id, cr.name, cr.is_group, cr.created_at
+                    SELECT cr.id, cr.name, cr.is_group, cr.created_at,
+                           (SELECT MAX(m2.created_at) FROM messages m2 WHERE m2.chat_id = cr.id) as last_message_at
                     FROM chat_members cm
                     JOIN chat_rooms cr ON cr.id = cm.chat_id
                     WHERE cm.user_id = :uid
-                    AND EXISTS (SELECT 1 FROM messages m WHERE m.chat_id = cr.id)
-                    ORDER BY (
-                        SELECT MAX(m2.created_at) 
-                        FROM messages m2 
-                        WHERE m2.chat_id = cr.id
-                    ) DESC
+                    ORDER BY 
+                        CASE WHEN last_message_at IS NULL THEN cr.created_at ELSE last_message_at END DESC
                 ');
                 $stmt->execute([':uid' => $userId]);
                 return $stmt->fetchAll(PDO::FETCH_ASSOC);
             }
         } catch (Exception $e) {}
-        // Fallback: rooms created by this user - only with messages
+        // Fallback: rooms created by this user - including empty rooms
         $stmt = $this->pdo->prepare('
-            SELECT cr.id, cr.name, cr.is_group, cr.created_at 
+            SELECT cr.id, cr.name, cr.is_group, cr.created_at,
+                   (SELECT MAX(m2.created_at) FROM messages m2 WHERE m2.chat_id = cr.id) as last_message_at
             FROM chat_rooms cr
             WHERE cr.created_by = :uid
-            AND EXISTS (SELECT 1 FROM messages m WHERE m.chat_id = cr.id)
-            ORDER BY (
-                SELECT MAX(m2.created_at) 
-                FROM messages m2 
-                WHERE m2.chat_id = cr.id
-            ) DESC
+            ORDER BY 
+                CASE WHEN last_message_at IS NULL THEN cr.created_at ELSE last_message_at END DESC
         ');
         $stmt->execute([':uid' => $userId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -12,11 +12,14 @@ function initializeComments() {
     document.querySelectorAll('.comment-form').forEach(form => {
         // Remove any existing listeners to prevent duplicates
         form.removeEventListener('submit', handleCommentSubmissionWrapper);
-        // Add the event listener
-        form.addEventListener('submit', handleCommentSubmissionWrapper);
+        // Add the event listener only if not already marked
+        if (!form.hasAttribute('data-listener-added')) {
+            form.addEventListener('submit', handleCommentSubmissionWrapper);
+            form.setAttribute('data-listener-added', 'true');
+        }
     });
     
-    // Also handle dynamically added forms
+    // Handle dynamically added forms (backup for forms created after page load)
     document.addEventListener('submit', function(e) {
         if (e.target.classList.contains('comment-form') && !e.target.hasAttribute('data-listener-added')) {
             e.preventDefault();
@@ -28,7 +31,15 @@ function initializeComments() {
     // Handle reaction buttons
     document.addEventListener('click', function(e) {
         if (e.target.closest('.reaction-trigger')) {
-            handleReactionClick(e.target.closest('.reaction-trigger'));
+            const button = e.target.closest('.reaction-trigger');
+            
+            // Check if user is holding Shift for emoji picker, otherwise just like
+            if (e.shiftKey) {
+                handleReactionClick(button);
+            } else {
+                // Direct like action
+                handleDirectReaction(button, 'like');
+            }
         }
         
         if (e.target.closest('.emoji')) {
@@ -50,7 +61,7 @@ function handleCommentSubmission(form) {
     const content = textarea.value.trim();
     
     if (!content) {
-        showNotification('Please enter a comment', 'warning');
+        alert('Please enter a comment');
         return;
     }
     
@@ -89,7 +100,7 @@ function handleCommentSubmission(form) {
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('An error occurred. Please try again.', 'error');
+        alert('An error occurred. Please try again.');
         
         // Re-enable form on error
         form.dataset.submitting = 'false';
@@ -102,12 +113,68 @@ function handleCommentSubmission(form) {
 // Note: addCommentToList and updateCommentCount functions removed
 // since we now refresh the page instead of using AJAX updates
 
-function handleReactionClick(button) {
+function handleDirectReaction(button, reactionType) {
     const postId = button.dataset.postId;
+    console.log('Direct reaction:', reactionType, 'for post:', postId);
+    
+    // Send reaction immediately
+    const formData = new FormData();
+    formData.append('action', 'react');
+    formData.append('post_id', postId);
+    formData.append('type', reactionType);
+    
+    console.log('Sending direct reaction request...');
+    
+    // Disable button temporarily
+    button.disabled = true;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Liking...';
+    
+    fetch('index.php', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Response data:', data);
+        if (data.ok) {
+            // Refresh the page to show updated reactions
+            window.location.reload();
+        } else {
+            console.error('Reaction failed:', data);
+            alert('Failed to add reaction');
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred: ' + error.message);
+        button.disabled = false;
+        button.innerHTML = originalText;
+    });
+}
+
+function handleReactionClick(button) {
+    console.log('Reaction button clicked', button);
+    const postId = button.dataset.postId;
+    console.log('Post ID:', postId);
+    
     const emojiPicker = document.querySelector(`[data-post-id="${postId}"] .emoji-picker`);
+    console.log('Emoji picker found:', emojiPicker);
     
     if (emojiPicker) {
         const isVisible = emojiPicker.style.display !== 'none';
+        console.log('Picker currently visible:', isVisible);
         
         // Hide all other emoji pickers
         document.querySelectorAll('.emoji-picker').forEach(picker => {
@@ -118,19 +185,31 @@ function handleReactionClick(button) {
         emojiPicker.style.display = isVisible ? 'none' : 'flex';
         
         if (!isVisible) {
-            // Position the picker
+            // Position the picker relative to the button
             const rect = button.getBoundingClientRect();
             emojiPicker.style.position = 'absolute';
-            emojiPicker.style.top = (rect.top - emojiPicker.offsetHeight - 10) + 'px';
+            emojiPicker.style.top = (rect.top - 50) + 'px';
             emojiPicker.style.left = rect.left + 'px';
+            emojiPicker.style.zIndex = '1000';
+            emojiPicker.style.background = 'white';
+            emojiPicker.style.border = '1px solid #ddd';
+            emojiPicker.style.borderRadius = '8px';
+            emojiPicker.style.padding = '8px';
+            emojiPicker.style.gap = '5px';
+            emojiPicker.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
         }
+    } else {
+        console.error('Emoji picker not found for post ID:', postId);
     }
 }
 
 function handleEmojiClick(emoji) {
+    console.log('Emoji clicked:', emoji);
     const emojiPicker = emoji.closest('.emoji-picker');
     const postId = emojiPicker.dataset.postId;
     const reactionType = emoji.dataset.type;
+    
+    console.log('Post ID:', postId, 'Reaction Type:', reactionType);
     
     // Hide the picker
     emojiPicker.style.display = 'none';
@@ -141,6 +220,8 @@ function handleEmojiClick(emoji) {
     formData.append('post_id', postId);
     formData.append('type', reactionType);
     
+    console.log('Sending reaction request...');
+    
     fetch('index.php', {
         method: 'POST',
         body: formData,
@@ -148,25 +229,26 @@ function handleEmojiClick(emoji) {
             'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Response data:', data);
         if (data.ok) {
-            // Update reaction count
-            updateReactionCount(postId, 1);
-            showNotification('Reaction added!', 'success', 2000);
-            
-            // Add visual feedback
-            emoji.style.transform = 'scale(1.3)';
-            setTimeout(() => {
-                emoji.style.transform = 'scale(1)';
-            }, 200);
+            // Refresh the page to show updated reactions
+            window.location.reload();
         } else {
-            showNotification('Failed to add reaction', 'error');
+            console.error('Reaction failed:', data);
+            alert('Failed to add reaction');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showNotification('An error occurred', 'error');
+        alert('An error occurred: ' + error.message);
     });
 }
 
@@ -182,82 +264,6 @@ function updateReactionCount(postId, increment) {
             reactionStats.textContent = `${newCount} reaction${newCount !== 1 ? 's' : ''}`;
         }
     }
-}
-
-function showNotification(message, type = 'info', duration = 3000) {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.innerHTML = `
-        <div class="notification-content">
-            <i class="fas fa-${getNotificationIcon(type)}"></i>
-            <span>${message}</span>
-        </div>
-        <button class="notification-close">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    
-    // Style the notification
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: var(--bg-primary);
-        border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-xl);
-        padding: 1rem 1.5rem;
-        z-index: 3000;
-        max-width: 400px;
-        border-left: 4px solid var(--${getNotificationColor(type)});
-        animation: slideInRight 0.3s ease-out;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Auto remove
-    const autoRemove = setTimeout(() => {
-        removeNotification(notification);
-    }, duration);
-    
-    // Manual close
-    notification.querySelector('.notification-close').addEventListener('click', () => {
-        clearTimeout(autoRemove);
-        removeNotification(notification);
-    });
-}
-
-function removeNotification(notification) {
-    notification.style.animation = 'slideOutRight 0.3s ease-out';
-    setTimeout(() => {
-        if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
-        }
-    }, 300);
-}
-
-function getNotificationIcon(type) {
-    const icons = {
-        info: 'info-circle',
-        success: 'check-circle',
-        warning: 'exclamation-triangle',
-        error: 'exclamation-circle'
-    };
-    return icons[type] || 'info-circle';
-}
-
-function getNotificationColor(type) {
-    const colors = {
-        info: 'primary-green',
-        success: 'primary-green',
-        warning: 'secondary-orange',
-        error: 'secondary-red'
-    };
-    return colors[type] || 'primary-green';
 }
 
 function escapeHtml(text) {

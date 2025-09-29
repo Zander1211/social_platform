@@ -413,3 +413,6 @@ window.SchoolPlatform = {
     debounce,
     throttle
 };
+
+// Also make showNotification available globally for backward compatibility
+window.showNotification = showNotification;

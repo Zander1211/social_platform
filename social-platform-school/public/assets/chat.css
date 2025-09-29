@@ -838,6 +838,114 @@
   outline-offset: 2px;
 }
 
+/* Group Creation Member Selection */
+.members-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm);
+  background: var(--bg-primary);
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  margin-bottom: var(--space-xs);
+}
+
+.member-item:hover {
+  background: var(--gray-50);
+  transform: translateX(4px);
+}
+
+.member-item input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.member-item input[type="checkbox"] + .member-info::before {
+  content: '';
+  position: absolute;
+  left: -40px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  transition: all 0.3s ease;
+}
+
+.member-item input[type="checkbox"]:checked + .member-info::before {
+  background: var(--primary-green);
+  border-color: var(--primary-green);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.member-item input[type="checkbox"]:checked + .member-info::after {
+  content: '✓';
+  position: absolute;
+  left: -36px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.member-item:hover input[type="checkbox"] + .member-info::before {
+  border-color: var(--primary-green-light);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.member-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex: 1;
+  margin-left: 40px;
+  position: relative;
+}
+
+.member-avatar {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.member-details {
+  flex: 1;
+}
+
+.member-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.member-role {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
 /* Print Styles */
 @media print {
   .chat-sidebar,
@@ -855,4 +963,113 @@
   .message {
     break-inside: avoid;
   }
+}
+
+/* Group Info Modal Styles */
+.group-info-modal {
+  max-width: 500px;
+  width: 90%;
+}
+
+.group-info-section {
+  margin-bottom: var(--space-lg);
+}
+
+.group-info-section h4 {
+  margin: 0 0 var(--space-md) 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding-bottom: var(--space-sm);
+  border-bottom: 2px solid var(--gray-200);
+}
+
+.group-info-section h4 i {
+  color: var(--primary-green);
+}
+
+.members-display {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.member-display-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--gray-200);
+}
+
+.member-display-avatar {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background: var(--primary-green);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+}
+
+.member-display-info {
+  flex: 1;
+}
+
+.member-display-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.member-display-role {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.group-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm);
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--gray-200);
+}
+
+.detail-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.detail-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Modal overlay z-index fix */
+.modal {
+  z-index: 10000;
+}
+
+.modal .modal-overlay {
+  z-index: 10001;
+}
+
+.modal .modal-content {
+  z-index: 10002;
 }

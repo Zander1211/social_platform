@@ -158,10 +158,54 @@ $warningsCount = is_array($warnings) ? count($warnings) : 0;
 
 .edit-form {
   display: none;
+  background: linear-gradient(135deg, #f8fffe 0%, #f0fdfa 100%);
+  border-radius: 16px;
+  padding: 30px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  border: 1px solid #d1fae5;
+  position: relative;
+  overflow: hidden;
+}
+
+.edit-form::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #10b981, #34d399, #6ee7b7);
 }
 
 .edit-form.active {
   display: block;
+  animation: slideInUp 0.4s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.edit-form .section-title {
+  color: #065f46;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 25px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.edit-form .section-title::before {
+  content: '✏️';
+  font-size: 20px;
 }
 
 .profile-view.editing {
@@ -170,12 +214,228 @@ $warningsCount = is_array($warnings) ? count($warnings) : 0;
 
 .form-row {
   display: flex;
-  gap: 15px;
-  margin-bottom: 15px;
+  gap: 20px;
+  margin-bottom: 20px;
 }
 
 .form-row .form-group {
   flex: 1;
+}
+
+.form-group {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.form-group:focus-within label {
+  color: #10b981;
+}
+
+.form-group .input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 15px;
+  background: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.form-group .input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+  transform: translateY(-1px);
+}
+
+.form-group .input:hover:not(:focus) {
+  border-color: #d1d5db;
+}
+
+.form-group .input::placeholder {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* Select styling */
+.form-group select.input {
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  padding-right: 45px;
+  appearance: none;
+}
+
+.form-group select.input:focus {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+/* Textarea styling */
+.form-group textarea.input {
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+/* Date input styling */
+.form-group input[type="date"].input {
+  cursor: pointer;
+}
+
+.form-group input[type="date"].input::-webkit-calendar-picker-indicator {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3crect x='3' y='4' width='18' height='18' rx='2' ry='2'%3e%3c/rect%3e%3cline x1='16' y1='2' x2='16' y2='6'%3e%3c/line%3e%3cline x1='8' y1='2' x2='8' y2='6'%3e%3c/line%3e%3cline x1='3' y1='10' x2='21' y2='10'%3e%3c/line%3e%3c/svg%3e");
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+/* Section headers */
+.edit-form h4 {
+  color: #065f46;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 30px 0 20px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #d1fae5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-form h4::before {
+  content: '📋';
+  font-size: 16px;
+}
+
+/* Profile field (for full-width elements) */
+.profile-field {
+  margin-bottom: 20px;
+}
+
+.profile-field label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.profile-field .input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 15px;
+  background: white;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.profile-field .input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+}
+
+/* Button styling */
+.edit-form .btn {
+  padding: 14px 28px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.edit-form .btn:not(.secondary) {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.edit-form .btn:not(.secondary):hover {
+  background: linear-gradient(135deg, #059669, #047857);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.edit-form .btn.secondary {
+  background: #f9fafb;
+  color: #374151;
+  border: 2px solid #e5e7eb;
+}
+
+.edit-form .btn.secondary:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+/* Button container */
+.edit-form > div:last-child {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 15px;
+  justify-content: flex-end;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .edit-form {
+    padding: 20px;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .edit-form > div:last-child {
+    flex-direction: column;
+  }
+  
+  .edit-form .btn {
+    width: 100%;
+  }
+}
+
+/* Required field indicator */
+.form-group label:after {
+  content: " *";
+  color: #ef4444;
+  font-weight: bold;
+}
+
+.form-group label[for="student_id"]:after,
+.form-group label[for="contact_number"]:after,
+.form-group label[for="date_of_birth"]:after,
+.form-group label[for="gender"]:after,
+.form-group label[for="hometown"]:after,
+.form-group label[for="profile_visibility"]:after,
+.form-group label[for="course"]:after,
+.form-group label[for="major"]:after,
+.form-group label[for="year_level"]:after,
+.profile-field label[for="bio"]:after,
+.profile-field label[for="interests"]:after,
+.form-group label[for="emergency_contact_name"]:after,
+.form-group label[for="emergency_contact_phone"]:after {
+  content: "";
 }
 
 .message {
@@ -239,6 +499,19 @@ $warningsCount = is_array($warnings) ? count($warnings) : 0;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Ensure post composer modal is always above profile modals */
+.post-composer-modal {
+  z-index: 9999 !important;
+}
+
+.post-composer-modal .modal-overlay {
+  z-index: 9998 !important;
+}
+
+.post-composer-modal .modal-content {
+  z-index: 9999 !important;
 }
 
 .modal-content {
@@ -690,7 +963,7 @@ $warningsCount = is_array($warnings) ? count($warnings) : 0;
           </div>
           
           <!-- Emergency Contact -->
-          <h4 style="margin-top:20px;margin-bottom:15px;color:#374151">Emergency Contact Information</h4>
+          <h4>🚨 Emergency Contact Information</h4>
           <div class="form-row">
             <div class="form-group">
               <label for="emergency_contact_name">Emergency Contact Name</label>

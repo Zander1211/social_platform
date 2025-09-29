@@ -93,7 +93,7 @@ if (isset($pdo)) {
 }
 
 .news-feed-dashboard:hover {
-    border-color: var(--academic-navy);
+    border-color: var(--academic-green);
     box-shadow: var(--shadow-lg);
     transform: translateY(-2px);
 }
@@ -113,7 +113,7 @@ if (isset($pdo)) {
     margin: 0 0 var(--space-md) 0;
     font-size: var(--font-size-base);
     font-weight: 600;
-    color: var(--academic-navy);
+    color: var(--academic-green);
     display: flex;
     align-items: center;
     gap: var(--space-sm);
@@ -144,7 +144,7 @@ if (isset($pdo)) {
     left: 0;
     right: 0;
     height: 3px;
-    background: linear-gradient(90deg, var(--academic-navy) 0%, var(--academic-gold) 50%, var(--academic-navy) 100%);
+    background: linear-gradient(90deg, var(--academic-green) 0%, var(--academic-gold) 50%, var(--academic-green) 100%);
 }
 
 .sidebar-filter-buttons {
@@ -182,9 +182,9 @@ if (isset($pdo)) {
 }
 
 .sidebar-filter-btn:hover {
-    background: var(--academic-navy);
+    background: var(--academic-green);
     color: var(--text-inverse);
-    border-color: var(--academic-navy);
+    border-color: var(--academic-green);
     transform: translateX(4px);
     box-shadow: var(--shadow-md);
     text-decoration: none;
@@ -195,7 +195,7 @@ if (isset($pdo)) {
 }
 
 .sidebar-filter-btn.active {
-    background: linear-gradient(135deg, var(--academic-navy) 0%, var(--academic-navy-dark) 100%);
+    background: linear-gradient(135deg, var(--academic-green) 0%, var(--academic-green-dark) 100%);
     color: var(--text-inverse);
     border-color: var(--academic-gold);
     box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
@@ -203,7 +203,7 @@ if (isset($pdo)) {
 }
 
 .sidebar-filter-btn.active:hover {
-    background: linear-gradient(135deg, var(--academic-navy-light) 0%, var(--academic-navy) 100%);
+    background: linear-gradient(135deg, var(--academic-green-light) 0%, var(--academic-green) 100%);
     transform: translateX(6px);
     box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.3), var(--shadow-lg);
 }

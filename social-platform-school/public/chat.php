@@ -5,15 +5,76 @@ require_once __DIR__ . '/../src/Controller/ChatController.php';
 
 $chatController = new ChatController($pdo);
 
+// AJAX endpoint for group info - must be before any HTML output
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'group_info' && isset($_GET['group_id'])) {
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Not authenticated']);
+        exit();
+    }
+    
+    $groupId = (int)$_GET['group_id'];
+    
+    try {
+        $groupInfo = $chatController->getGroupInfo($groupId);
+        $members = $chatController->getGroupMembers($groupId);
+        
+        header('Content-Type: application/json');
+        echo json_encode([
+            'group' => $groupInfo,
+            'members' => $members
+        ]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+// AJAX endpoint for message count - must be before any HTML output
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['action'] === 'message_count' && isset($_GET['group_id'])) {
+    if (!isset($_SESSION['user_id'])) {
+        http_response_code(401);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Not authenticated']);
+        exit();
+    }
+    
+    $groupId = (int)$_GET['group_id'];
+    
+    try {
+        $count = $chatController->getMessageCount($groupId);
+        
+        header('Content-Type: application/json');
+        echo json_encode(['count' => $count]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['create_group'])) {
         if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit(); }
         $name = trim($_POST['group_name'] ?? '');
         $members = isset($_POST['members']) && is_array($_POST['members']) ? $_POST['members'] : [];
+        
+        // Debug output
+        error_log("Group creation attempt - Name: $name, Creator: " . $_SESSION['user_id']);
+        
         if ($name !== '') {
             $gid = $chatController->createGroup($name, $_SESSION['user_id']);
+            error_log("Group creation result - ID: " . ($gid ? $gid : 'false'));
+            
             if ($gid && !empty($members)) {
-                foreach ($members as $mid) { $chatController->addMember($gid, (int)$mid); }
+                foreach ($members as $mid) { 
+                    $result = $chatController->addMember($gid, (int)$mid);
+                    error_log("Adding member $mid to group $gid: " . ($result ? 'success' : 'failed'));
+                }
             }
         }
         header('Location: chat.php'); exit();
@@ -148,7 +209,7 @@ if (isset($_GET['user_id']) && !isset($_GET['room']) && !isset($_GET['group'])) 
                     <button class="btn btn-secondary btn-sm" title="Video Call" disabled style="opacity: 0.5; cursor: not-allowed;">
                         <i class="fas fa-video"></i>
                     </button>
-                    <button class="btn btn-secondary btn-sm" title="Group Info" disabled style="opacity: 0.5; cursor: not-allowed;">
+                    <button class="btn btn-secondary btn-sm" title="Group Info" onclick="openGroupInfoModal()">
                         <i class="fas fa-info-circle"></i>
                     </button>
                 </div>
@@ -219,6 +280,45 @@ if (isset($_GET['user_id']) && !isset($_GET['room']) && !isset($_GET['group'])) 
     </div>
 </div>
 
+<!-- Group Info Modal -->
+<div id="groupInfoModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeGroupInfoModal()"></div>
+    <div class="modal-content group-info-modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-info-circle"></i> <span id="groupInfoTitle">Group Information</span></h3>
+            <button class="modal-close" onclick="closeGroupInfoModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="group-info-section">
+                <h4><i class="fas fa-users"></i> Members</h4>
+                <div id="groupMembersList" class="members-display">
+                    <!-- Members will be loaded here -->
+                </div>
+            </div>
+            <div class="group-info-section">
+                <h4><i class="fas fa-calendar"></i> Group Details</h4>
+                <div class="group-details">
+                    <div class="detail-item">
+                        <span class="detail-label">Created:</span>
+                        <span id="groupCreatedDate" class="detail-value">Loading...</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Created by:</span>
+                        <span id="groupCreator" class="detail-value">Loading...</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Total Messages:</span>
+                        <span id="groupMessageCount" class="detail-value">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeGroupInfoModal()">Close</button>
+        </div>
+    </div>
+</div>
+
 <!-- New Group Modal -->
 <div id="newGroupModal" class="modal" style="display: none;">
     <div class="modal-overlay" onclick="closeNewGroupModal()"></div>
@@ -227,7 +327,7 @@ if (isset($_GET['user_id']) && !isset($_GET['room']) && !isset($_GET['group'])) 
             <h3><i class="fas fa-users"></i> Create New Group</h3>
             <button class="modal-close" onclick="closeNewGroupModal()">&times;</button>
         </div>
-        <form method="POST" class="modal-form">
+        <form method="POST" class="modal-form" id="createGroupForm">
             <div class="form-group">
                 <label for="group_name">Group Name</label>
                 <input type="text" id="group_name" name="group_name" class="form-input" placeholder="Enter group name..." required>
@@ -257,7 +357,7 @@ if (isset($_GET['user_id']) && !isset($_GET['room']) && !isset($_GET['group'])) 
             
             <div class="form-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeNewGroupModal()">Cancel</button>
-                <button type="submit" name="create_group" class="btn btn-primary">
+                <button type="submit" name="create_group" class="btn btn-primary" id="createGroupBtn">
                     <i class="fas fa-plus"></i> Create Group
                 </button>
             </div>
@@ -291,6 +391,113 @@ function openNewGroupModal() {
 function closeNewGroupModal() {
     document.getElementById('newGroupModal').style.display = 'none';
     document.body.style.overflow = '';
+}
+
+// Group Info Modal functions
+function openGroupInfoModal() {
+    const modal = document.getElementById('groupInfoModal');
+    if (modal) {
+        // Get current group info from the page
+        const groupTitle = document.querySelector('.chat-details h4')?.textContent || 'Unknown Group';
+        const messageCount = document.querySelector('.chat-status')?.textContent.match(/(\d+) messages/)?.[1] || '0';
+        
+        // Update modal content
+        document.getElementById('groupInfoTitle').textContent = groupTitle;
+        document.getElementById('groupMessageCount').textContent = messageCount;
+        
+        // Load group details
+        loadGroupInfo();
+        
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeGroupInfoModal() {
+    document.getElementById('groupInfoModal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function loadGroupInfo() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const groupId = urlParams.get('group');
+    
+    if (groupId) {
+        // Show loading state
+        document.getElementById('groupCreatedDate').textContent = 'Loading...';
+        document.getElementById('groupCreator').textContent = 'Loading...';
+        document.getElementById('groupMessageCount').textContent = 'Loading...';
+        document.getElementById('groupMembersList').innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Loading members...</div>';
+        
+        // Fetch group info from server
+        fetch(`chat.php?action=group_info&group_id=${groupId}`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.group) {
+                // Update modal title with group name
+                document.getElementById('groupInfoTitle').textContent = data.group.name || 'Group Information';
+                
+                // Update group details
+                const createdDate = new Date(data.group.created_at).toLocaleDateString();
+                document.getElementById('groupCreatedDate').textContent = createdDate;
+                document.getElementById('groupCreator').textContent = data.group.creator_name || 'Unknown';
+                
+                // Get message count
+                fetch(`chat.php?action=message_count&group_id=${groupId}`, {
+                    method: 'GET',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(countData => {
+                    document.getElementById('groupMessageCount').textContent = countData.count || '0';
+                })
+                .catch(() => {
+                    document.getElementById('groupMessageCount').textContent = '-';
+                });
+            }
+            
+            if (data.members && data.members.length > 0) {
+                // Update members list
+                const membersList = document.getElementById('groupMembersList');
+                membersList.innerHTML = '';
+                
+                data.members.forEach(member => {
+                    const memberDiv = document.createElement('div');
+                    memberDiv.className = 'member-display-item';
+                    
+                    const isCreator = member.user_id == data.group.created_by;
+                    const initial = member.name ? member.name.charAt(0).toUpperCase() : 'U';
+                    
+                    memberDiv.innerHTML = `
+                        <div class="member-display-avatar">
+                            ${initial}
+                        </div>
+                        <div class="member-display-info">
+                            <div class="member-display-name">${member.name || 'Unknown User'}</div>
+                            <div class="member-display-role">${isCreator ? 'Group Creator' : 'Member'}</div>
+                        </div>
+                    `;
+                    
+                    membersList.appendChild(memberDiv);
+                });
+            } else {
+                // No members found
+                document.getElementById('groupMembersList').innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">No members found</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading group info:', error);
+            document.getElementById('groupCreatedDate').textContent = 'Error loading';
+            document.getElementById('groupCreator').textContent = 'Error loading';
+            document.getElementById('groupMessageCount').textContent = 'Error';
+            document.getElementById('groupMembersList').innerHTML = '<div style="text-align: center; padding: 20px; color: #666;">Failed to load members</div>';
+        });
+    }
 }
 
 // Search functionality
@@ -339,6 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             closeNewGroupModal();
+            closeGroupInfoModal();
         }
     });
 });

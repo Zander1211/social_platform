@@ -65,23 +65,25 @@
     
     // Post Composer Modal Functions (available globally for admins)
     function openPostComposer() {
-        const modal = document.getElementById('postComposerModal');
+        const modal = document.getElementById('globalPostComposerModal');
         if (modal) {
             modal.style.display = 'flex';
             document.body.style.overflow = 'hidden';
             
             // Focus on title input
             setTimeout(() => {
-                const titleInput = document.getElementById('post-title');
+                const titleInput = document.getElementById('global-post-title');
                 if (titleInput) {
                     titleInput.focus();
                 }
             }, 100);
+        } else {
+            console.error('Post composer modal not found!');
         }
     }
     
     function closePostComposer() {
-        const modal = document.getElementById('postComposerModal');
+        const modal = document.getElementById('globalPostComposerModal');
         if (modal) {
             modal.style.display = 'none';
             document.body.style.overflow = '';
@@ -90,14 +92,18 @@
             const form = modal.querySelector('form');
             if (form) {
                 form.reset();
-                // Reset file info
-                const fileInfo = form.querySelector('.file-info');
-                if (fileInfo) {
-                    fileInfo.textContent = 'Supported: Images, Videos, Audio, Documents (Max 10MB)';
-                    fileInfo.style.color = '#6b7280';
+                // Clear file preview
+                const preview = document.getElementById('global-file-preview');
+                if (preview) {
+                    preview.innerHTML = '';
                 }
             }
         }
+    }
+    
+    // Alias for closeGlobalPostComposer
+    function closeGlobalPostComposer() {
+        closePostComposer();
     }
     
     // Global event listeners for modal
@@ -110,7 +116,7 @@
         });
         
         // Enhanced file input with preview
-        const fileInput = document.getElementById('post-attachment');
+        const fileInput = document.getElementById('global-post-attachment');
         if (fileInput) {
             fileInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];

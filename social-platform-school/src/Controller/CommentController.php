@@ -11,6 +11,14 @@ class CommentController
 
     public function addComment($postId, $userId, $content)
     {
+        // Check for recent duplicate comment (within last 3 seconds)
+        $checkStmt = $this->pdo->prepare('SELECT id FROM comments WHERE post_id = :post_id AND user_id = :user_id AND content = :content AND created_at > DATE_SUB(NOW(), INTERVAL 3 SECOND)');
+        $checkStmt->execute([':post_id' => $postId, ':user_id' => $userId, ':content' => $content]);
+        if ($checkStmt->fetch()) {
+            // Duplicate detected, return success to avoid showing error to user
+            return ['status' => 'success', 'message' => 'Comment already added'];
+        }
+
         $stmt = $this->pdo->prepare('INSERT INTO comments (post_id, user_id, content, created_at) VALUES (:post_id, :user_id, :content, NOW())');
         $ok = $stmt->execute([':post_id' => $postId, ':user_id' => $userId, ':content' => $content]);
         return $ok ? ['status' => 'success'] : ['status' => 'error'];

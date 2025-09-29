@@ -51,7 +51,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || strtolower($_SE
     left: 0;
     width: 100%;
     height: 100%;
-    z-index: 1000;
+    z-index: 9999;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -65,6 +65,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || strtolower($_SE
     height: 100%;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(4px);
+    z-index: 9998;
 }
 
 .post-composer-modal .modal-content {
@@ -77,6 +78,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || strtolower($_SE
     max-height: 90vh;
     overflow-y: auto;
     animation: modalSlideIn 0.3s ease-out;
+    z-index: 9999;
 }
 
 .post-composer-modal .modal-header {
@@ -254,6 +256,15 @@ function openPostComposer() {
     
     if (modal) {
         console.log('Opening global modal...');
+        
+        // Close any other modals that might be open (like profile modals)
+        const allModals = document.querySelectorAll('.modal-overlay');
+        allModals.forEach(modalOverlay => {
+            if (modalOverlay.parentElement.id !== 'globalPostComposerModal') {
+                modalOverlay.parentElement.style.display = 'none';
+            }
+        });
+        
         modal.style.display = 'flex';
         document.body.style.overflow = 'hidden';
         

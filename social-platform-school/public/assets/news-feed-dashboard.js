@@ -55,12 +55,35 @@ function handleLike(button) {
         setTimeout(() => icon.style.animation = '', 600);
     }
     
-    // Send to server (mock)
-    fetch(`/api/posts/${postId}/like`, {
+    // Send to server using the correct endpoint
+    const formData = new FormData();
+    formData.append('action', 'react');
+    formData.append('post_id', postId);
+    formData.append('type', 'like');
+    
+    fetch('index.php', {
         method: 'POST',
+        body: formData,
         headers: {
-            'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
+        }
+    }).then(response => response.json())
+    .then(data => {
+        if (!data.ok) {
+            // Revert on error
+            button.classList.toggle('liked');
+            if (isLiked) {
+                icon.className = 'fas fa-heart';
+                count.textContent = parseInt(count.textContent) + 1;
+                button.style.color = 'var(--secondary-red)';
+            } else {
+                icon.className = 'far fa-heart';
+                count.textContent = parseInt(count.textContent) - 1;
+                button.style.color = 'var(--text-secondary)';
+            }
+            if (window.SchoolPlatform && window.SchoolPlatform.showNotification) {
+                window.SchoolPlatform.showNotification('Failed to update like', 'error');
+            }
         }
     }).catch(error => {
         // Revert on error
@@ -68,11 +91,15 @@ function handleLike(button) {
         if (isLiked) {
             icon.className = 'fas fa-heart';
             count.textContent = parseInt(count.textContent) + 1;
+            button.style.color = 'var(--secondary-red)';
         } else {
             icon.className = 'far fa-heart';
             count.textContent = parseInt(count.textContent) - 1;
+            button.style.color = 'var(--text-secondary)';
         }
-        window.SchoolPlatform.showNotification('Failed to update like', 'error');
+        if (window.SchoolPlatform && window.SchoolPlatform.showNotification) {
+            window.SchoolPlatform.showNotification('Failed to update like', 'error');
+        }
     });
 }
 
