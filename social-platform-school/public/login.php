@@ -32,13 +32,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
-      /* Academic Color Palette */
-      --academic-navy: #1e3a8a;
-      --academic-navy-dark: #1e40af;
-      --academic-navy-light: #3b82f6;
-      --academic-gold: #f59e0b;
-      --academic-gold-dark: #d97706;
-      --academic-gold-light: #fbbf24;
+      /* Academic Color Palette - Green Theme */
+      --academic-green: #10b981;
+      --academic-green-dark: #059669;
+      --academic-green-light: #34d399;
+      --academic-teal: #14b8a6;
+      --academic-teal-dark: #0d9488;
+      --academic-teal-light: #2dd4bf;
       
       /* Neutral Academic Colors */
       --academic-gray-50: #f9fafb;
@@ -99,8 +99,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       width: 100%;
       height: 100%;
       background-image: 
-        radial-gradient(circle at 25% 25%, rgba(30, 58, 138, 0.05) 0%, transparent 50%),
-        radial-gradient(circle at 75% 75%, rgba(245, 158, 11, 0.05) 0%, transparent 50%);
+        radial-gradient(circle at 25% 25%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, rgba(20, 184, 166, 0.05) 0%, transparent 50%);
       z-index: -1;
     }
 
@@ -121,7 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       overflow: hidden;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      border: 3px solid var(--academic-navy);
+      border: 3px solid var(--academic-green);
       position: relative;
     }
 
@@ -133,12 +133,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       left: 0;
       right: 0;
       height: 6px;
-      background: linear-gradient(90deg, var(--academic-navy) 0%, var(--academic-gold) 50%, var(--academic-navy) 100%);
+      background: linear-gradient(90deg, var(--academic-green) 0%, var(--academic-teal) 50%, var(--academic-green) 100%);
       z-index: 10;
     }
 
     .academic-visual {
-      background: linear-gradient(135deg, var(--academic-navy) 0%, var(--academic-navy-dark) 100%);
+      background: linear-gradient(135deg, var(--academic-green) 0%, var(--academic-green-dark) 100%);
       padding: 3rem 2.5rem;
       position: relative;
       display: flex;
@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       right: 0;
       bottom: 0;
       background-image: 
-        radial-gradient(circle at 20% 80%, rgba(245, 158, 11, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 20% 80%, rgba(20, 184, 166, 0.1) 0%, transparent 50%),
         radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
     }
 
@@ -167,7 +167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .brand-logo {
       width: 80px;
       height: 80px;
-      background: linear-gradient(135deg, var(--academic-gold) 0%, var(--academic-gold-light) 100%);
+      background: linear-gradient(135deg, var(--academic-teal) 0%, var(--academic-teal-light) 100%);
       border-radius: 1rem;
       display: flex;
       align-items: center;
@@ -184,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       font-weight: 700;
       line-height: 1.2;
       margin-bottom: 1rem;
-      background: linear-gradient(135deg, var(--text-inverse) 0%, var(--academic-gold-light) 100%);
+      background: linear-gradient(135deg, var(--text-inverse) 0%, var(--academic-teal-light) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -214,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     .academic-features i {
       width: 20px;
-      color: var(--academic-gold);
+      color: var(--academic-teal-light);
     }
 
     .login-form-section {
@@ -234,7 +234,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       font-family: 'Georgia', serif;
       font-size: 2rem;
       font-weight: 700;
-      color: var(--academic-navy);
+      color: var(--academic-green);
       margin-bottom: 0.5rem;
     }
 
@@ -274,8 +274,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     .form-input:focus {
       outline: none;
-      border-color: var(--academic-navy);
-      box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+      border-color: var(--academic-green);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
     }
 
     .form-input::placeholder {
@@ -298,7 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .checkbox-group input[type="checkbox"] {
       width: 1rem;
       height: 1rem;
-      accent-color: var(--academic-navy);
+      accent-color: var(--academic-green);
     }
 
     .checkbox-group label {
@@ -308,7 +308,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     .forgot-link {
-      color: var(--academic-navy);
+      color: var(--academic-green);
       text-decoration: none;
       font-size: 0.875rem;
       font-weight: 500;
@@ -316,14 +316,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     .forgot-link:hover {
-      color: var(--academic-navy-light);
+      color: var(--academic-green-light);
       text-decoration: underline;
     }
 
     .login-button {
       width: 100%;
       padding: 1rem 1.5rem;
-      background: linear-gradient(135deg, var(--academic-navy) 0%, var(--academic-navy-dark) 100%);
+      background: linear-gradient(135deg, var(--academic-green) 0%, var(--academic-green-dark) 100%);
       color: var(--text-inverse);
       border: none;
       border-radius: 0.75rem;
@@ -337,7 +337,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     .login-button:hover {
-      background: linear-gradient(135deg, var(--academic-navy-dark) 0%, var(--academic-navy) 100%);
+      background: linear-gradient(135deg, var(--academic-green-dark) 0%, var(--academic-green) 100%);
       transform: translateY(-2px);
       box-shadow: var(--shadow-lg);
     }
@@ -358,7 +358,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     .register-link a {
-      color: var(--academic-navy);
+      color: var(--academic-green);
       text-decoration: none;
       font-weight: 600;
       margin-left: 0.5rem;
@@ -391,7 +391,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       bottom: 2rem;
       right: 2rem;
       font-size: 6rem;
-      color: rgba(245, 158, 11, 0.1);
+      color: rgba(20, 184, 166, 0.1);
       z-index: 1;
     }
 
@@ -483,7 +483,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     .login-button:focus,
     .forgot-link:focus,
     .register-link a:focus {
-      outline: 3px solid var(--academic-gold);
+      outline: 3px solid var(--academic-teal);
       outline-offset: 2px;
     }
   </style>

@@ -226,6 +226,176 @@ $warningsCount = is_array($warnings) ? count($warnings) : 0;
   gap: 20px;
 }
 
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: var(--bg-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+.avatar-modal {
+  max-width: 400px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-lg) var(--space-xl);
+  border-bottom: 1px solid var(--gray-200);
+  background: linear-gradient(135deg, var(--primary-green-lighter), var(--bg-primary));
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--primary-green-dark);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.modal-header h3 i {
+  color: var(--primary-green);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+  background: var(--gray-100);
+  color: var(--text-primary);
+}
+
+.modal-body {
+  padding: var(--space-xl);
+  text-align: center;
+}
+
+.modal-body p {
+  margin-bottom: var(--space-lg);
+  color: var(--text-secondary);
+}
+
+.avatar-preview {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto var(--space-lg);
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--gray-100);
+  border: 3px solid var(--primary-green-lighter);
+  position: relative;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+.preview-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  gap: var(--space-sm);
+}
+
+.preview-placeholder i {
+  font-size: 2rem;
+  color: var(--primary-green-light);
+}
+
+.modal-footer {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: flex-end;
+  padding: var(--space-lg) var(--space-xl);
+  border-top: 1px solid var(--gray-200);
+  background: var(--gray-50);
+}
+
+.btn {
+  padding: var(--space-sm) var(--space-lg);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
+  color: var(--text-inverse);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--gray-300);
+}
+
+.btn-secondary:hover {
+  background: var(--gray-50);
+  border-color: var(--primary-green);
+  color: var(--text-primary);
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (max-width: 768px) {
   .profile-header {
     flex-direction: column;
@@ -238,6 +408,20 @@ $warningsCount = is_array($warnings) ? count($warnings) : 0;
   
   .info-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .modal-content {
+    width: 95%;
+    margin: var(--space-md);
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+    justify-content: center;
   }
 }
 </style>
@@ -529,17 +713,27 @@ $warningsCount = is_array($warnings) ? count($warnings) : 0;
 
   <!-- Avatar Change Confirmation Modal -->
   <?php if ($isOwnProfile): ?>
-    <div id="avatarConfirmModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
-      <div style="background:white; padding:20px; border-radius:8px; max-width:400px; width:90%;">
-        <h3 style="margin:0 0 15px 0;">Confirm Avatar Change</h3>
-        <p style="margin:0 0 20px 0;">Are you sure you want to change your avatar to this image?</p>
-        <div id="avatarPreview" style="width:100px; height:100px; margin:0 auto 20px; border-radius:50%; overflow:hidden; background:#eee;">
-          <img id="previewImage" style="width:100%; height:100%; object-fit:cover; display:none;">
-          <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#777;" id="previewPlaceholder">Preview</div>
+    <div id="avatarConfirmModal" class="modal-overlay" style="display:none;">
+      <div class="modal-content avatar-modal">
+        <div class="modal-header">
+          <h3><i class="fas fa-camera"></i> Confirm Avatar Change</h3>
+          <button class="modal-close" onclick="cancelAvatarChange()">&times;</button>
         </div>
-        <div style="display:flex; gap:10px; justify-content:flex-end;">
-          <button class="btn secondary" onclick="cancelAvatarChange()">Cancel</button>
-          <button class="btn" onclick="confirmAvatarChange()">Confirm</button>
+        <div class="modal-body">
+          <p>Are you sure you want to change your avatar to this image?</p>
+          <div id="avatarPreview" class="avatar-preview">
+            <img id="previewImage" class="preview-image">
+            <div class="preview-placeholder" id="previewPlaceholder">
+              <i class="fas fa-image"></i>
+              <span>Preview</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="cancelAvatarChange()">Cancel</button>
+          <button class="btn btn-primary" onclick="confirmAvatarChange()">
+            <i class="fas fa-check"></i> Confirm Change
+          </button>
         </div>
       </div>
     </div>

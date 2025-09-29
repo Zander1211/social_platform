@@ -25,7 +25,7 @@ class PostController
             
             // Search query
             if ($q) { 
-                $whereConditions[] = "((p.title LIKE :q OR p.content LIKE :q) OR u.name LIKE :q)";
+                $whereConditions[] = "(p.title LIKE :q)";
                 $params[':q'] = "%".$q."%"; 
             }
         } else {
@@ -36,7 +36,7 @@ class PostController
             
             // Search query
             if ($q) { 
-                $whereConditions[] = "((p.caption LIKE :q) OR u.name LIKE :q)";
+                $whereConditions[] = "(p.title LIKE :q)";
                 $params[':q'] = "%".$q."%"; 
             }
         }

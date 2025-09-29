@@ -25,10 +25,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $chatController->sendMessageToGroup($gid, $_SESSION['user_id'], trim($_POST['message'] ?? ''));
         header('Location: chat.php?group='.$gid); exit();
     }
+    
+    if (isset($_POST['start_dm']) && isset($_POST['user_id'])) {
+        if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit(); }
+        $otherUserId = (int)$_POST['user_id'];
+        $roomId = $chatController->getOrCreateDirectRoom($_SESSION['user_id'], $otherUserId);
+        if ($roomId) {
+            header('Location: chat.php?room='.$roomId); exit();
+        }
+        header('Location: chat.php'); exit();
+    }
 }
 
 $onlineUsers = $chatController->getActiveUsers();
 $groups = $chatController->listGroups();
+
+// Get user's rooms (both groups and DMs)
+$userRooms = [];
+if (isset($_SESSION['user_id'])) {
+    $userRooms = $chatController->listUserRooms($_SESSION['user_id']);
+}
+
+// Handle direct message from URL parameter
+if (isset($_GET['user_id']) && !isset($_GET['room']) && !isset($_GET['group'])) {
+    $otherUserId = (int)$_GET['user_id'];
+    if (isset($_SESSION['user_id']) && $otherUserId !== $_SESSION['user_id']) {
+        $roomId = $chatController->getOrCreateDirectRoom($_SESSION['user_id'], $otherUserId);
+        if ($roomId) {
+            header('Location: chat.php?room='.$roomId); exit();
+        }
+    }
+}
 ?>
 
 <?php require_once __DIR__ . '/../src/View/header.php'; ?>
@@ -50,25 +77,36 @@ $groups = $chatController->listGroups();
         </div>
         
         <div class="users-list">
-            <?php if (empty($groups)): ?>
+            <?php if (empty($userRooms)): ?>
                 <div class="no-chats">
                     <i class="fas fa-comments"></i>
                     <p>No conversations yet</p>
-                    <small>Start a new group chat to begin messaging</small>
+                    <small>Start a new group chat or message someone to begin</small>
                 </div>
             <?php else: ?>
-                <?php foreach ($groups as $g): ?>
-                    <div class="user-item <?php echo (isset($_GET['group']) && $_GET['group'] == $g['id']) ? 'active' : ''; ?>">
-                        <a href="chat.php?group=<?php echo $g['id']; ?>" class="user-link">
+                <?php foreach ($userRooms as $room): ?>
+                    <?php 
+                    $isGroup = (int)$room['is_group'] === 1;
+                    $roomTitle = $chatController->getRoomTitle($room['id'], $_SESSION['user_id']);
+                    $isActive = (isset($_GET['room']) && $_GET['room'] == $room['id']) || 
+                               (isset($_GET['group']) && $_GET['group'] == $room['id']);
+                    $roomUrl = $isGroup ? "chat.php?group={$room['id']}" : "chat.php?room={$room['id']}";
+                    ?>
+                    <div class="user-item <?php echo $isActive ? 'active' : ''; ?>">
+                        <a href="<?php echo $roomUrl; ?>" class="user-link">
                             <div class="user-item-avatar">
-                                <i class="fas fa-users"></i>
+                                <?php if ($isGroup): ?>
+                                    <i class="fas fa-users"></i>
+                                <?php else: ?>
+                                    <i class="fas fa-user"></i>
+                                <?php endif; ?>
                             </div>
                             <div class="user-item-info">
-                                <div class="user-item-name"><?php echo htmlspecialchars($g['name']); ?></div>
-                                <div class="user-item-role">Group Chat</div>
+                                <div class="user-item-name"><?php echo htmlspecialchars($roomTitle); ?></div>
+                                <div class="user-item-role"><?php echo $isGroup ? 'Group Chat' : 'Direct Message'; ?></div>
                             </div>
                             <div class="chat-time">
-                                <?php echo date('M j', strtotime($g['created_at'])); ?>
+                                <?php echo date('M j', strtotime($room['created_at'])); ?>
                             </div>
                         </a>
                     </div>
@@ -79,28 +117,28 @@ $groups = $chatController->listGroups();
 
     <!-- Chat Main Area -->
     <div class="chat-main">
-        <?php if (isset($_GET['group'])): ?>
+        <?php if (isset($_GET['group']) || isset($_GET['room'])): ?>
             <?php 
-            $gid = (int)$_GET['group']; 
-            $messages = $chatController->getGroupMessages($gid); 
-            $groupName = 'Group';
-            foreach ($groups as $gg) {
-                if($gg['id'] == $gid) {
-                    $groupName = $gg['name'];
-                    break;
-                }
-            }
+            $roomId = isset($_GET['group']) ? (int)$_GET['group'] : (int)$_GET['room'];
+            $isGroup = isset($_GET['group']);
+            $messages = $isGroup ? $chatController->getGroupMessages($roomId) : $chatController->getMessages($roomId);
+            $roomTitle = $chatController->getRoomTitle($roomId, $_SESSION['user_id']);
+            $roomInfo = $chatController->getRoomInfo($roomId);
             ?>
             
             <!-- Chat Header -->
             <div class="chat-main-header">
                 <div class="chat-info">
                     <div class="chat-avatar">
-                        <i class="fas fa-users"></i>
+                        <?php if ($isGroup): ?>
+                            <i class="fas fa-users"></i>
+                        <?php else: ?>
+                            <i class="fas fa-user"></i>
+                        <?php endif; ?>
                     </div>
                     <div class="chat-details">
-                        <h4><?php echo htmlspecialchars($groupName); ?></h4>
-                        <span class="chat-status">Group Chat • <?php echo count($messages); ?> messages</span>
+                        <h4><?php echo htmlspecialchars($roomTitle); ?></h4>
+                        <span class="chat-status"><?php echo $isGroup ? 'Group Chat' : 'Direct Message'; ?> • <?php echo count($messages); ?> messages</span>
                     </div>
                 </div>
                 <div class="chat-actions">

@@ -23,6 +23,9 @@
   </div> <!-- .simple-layout -->
   <?php endif; ?>
 
+  <!-- Global Post Composer -->
+  <?php require_once __DIR__ . '/post-composer.php'; ?>
+
   <script src="assets/app.js"></script>
   <script src="assets/news-feed-dashboard.js"></script>
   <script src="assets/comments.js"></script>
