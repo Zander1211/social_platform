@@ -7,11 +7,104 @@ require_once __DIR__ . '/../src/Controller/AdminController.php';
 $uc = new UserController($pdo);
 $adminController = new AdminController($pdo);
 
+// DEBUG: Log all POST data
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    error_log("POST DEBUG: All POST data = " . print_r($_POST, true));
+    error_log("POST DEBUG: Action = " . ($_POST['action'] ?? 'NO ACTION'));
+}
+
 // viewing ?id= or own profile
 $viewId = isset($_GET['id']) ? (int)$_GET['id'] : ($_SESSION['user_id'] ?? null);
 if (!$viewId) { header('Location: login.php'); exit(); }
 
 $isOwnProfile = isset($_SESSION['user_id']) && $_SESSION['user_id'] == $viewId;
+
+// Handle block/unblock user - PRIORITY HANDLER
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+  
+  // Handle user report
+  if ($_POST['action'] === 'report_user' && $viewId && $viewId != $_SESSION['user_id']) {
+    error_log("REPORT DEBUG: Report handler triggered");
+    
+    try {
+      $reason = trim($_POST['reason'] ?? '');
+      $description = trim($_POST['description'] ?? '');
+      
+      if (empty($reason)) {
+        $_SESSION['error_message'] = 'Please select a reason for the report.';
+      } else {
+        error_log("REPORT DEBUG: Reporter=" . $_SESSION['user_id'] . ", Reported=" . $viewId . ", Reason=" . $reason);
+        
+        // Insert report into database
+        $stmt = $pdo->prepare("INSERT INTO user_reports (reporter_user_id, reported_user_id, reason, description, status, created_at) VALUES (?, ?, ?, ?, 'pending', NOW())");
+        $result = $stmt->execute([$_SESSION['user_id'], $viewId, $reason, $description]);
+        
+        error_log("REPORT DEBUG: Result=" . ($result ? 'TRUE' : 'FALSE'));
+        
+        if ($result) {
+          $_SESSION['success_message'] = 'Report submitted successfully. Our moderation team will review it.';
+        } else {
+          $_SESSION['error_message'] = 'Failed to submit report. Please try again.';
+        }
+      }
+    } catch (Exception $e) {
+      error_log("REPORT DEBUG: Exception=" . $e->getMessage());
+      $_SESSION['error_message'] = 'Error submitting report: ' . $e->getMessage();
+    }
+    
+    header('Location: profile.php' . ($viewId ? '?id='.$viewId : ''));
+    exit();
+  }
+  
+  // Handle user blocking
+  if ($_POST['action'] === 'block_user' && $viewId && $viewId != $_SESSION['user_id']) {
+    error_log("BLOCK DEBUG: Block handler triggered");
+    
+    try {
+      $reason = trim($_POST['block_reason'] ?? 'No reason provided');
+      error_log("BLOCK DEBUG: Blocker=" . $_SESSION['user_id'] . ", Blocked=" . $viewId . ", Reason=" . $reason);
+      
+      $result = $adminController->blockUser($_SESSION['user_id'], $viewId, $reason);
+      error_log("BLOCK DEBUG: Result=" . ($result ? 'TRUE' : 'FALSE'));
+      
+      if ($result) {
+        // Success - redirect with success message
+        $_SESSION['success_message'] = 'User has been blocked successfully.';
+      } else {
+        $_SESSION['error_message'] = 'Failed to block user.';
+      }
+    } catch (Exception $e) {
+      error_log("BLOCK DEBUG: Exception=" . $e->getMessage());
+      $_SESSION['error_message'] = 'Error: ' . $e->getMessage();
+    }
+    
+    // Always redirect after processing
+    header('Location: profile.php' . ($viewId ? '?id='.$viewId : ''));
+    exit();
+  }
+  
+  if ($_POST['action'] === 'unblock_user' && $viewId && $viewId != $_SESSION['user_id']) {
+    error_log("UNBLOCK DEBUG: Unblock handler triggered");
+    
+    try {
+      $result = $adminController->unblockUser($_SESSION['user_id'], $viewId);
+      error_log("UNBLOCK DEBUG: Result=" . ($result ? 'TRUE' : 'FALSE'));
+      
+      if ($result) {
+        $_SESSION['success_message'] = 'User has been unblocked successfully.';
+      } else {
+        $_SESSION['error_message'] = 'Failed to unblock user.';
+      }
+    } catch (Exception $e) {
+      error_log("UNBLOCK DEBUG: Exception=" . $e->getMessage());
+      $_SESSION['error_message'] = 'Error: ' . $e->getMessage();
+    }
+    
+    // Always redirect after processing
+    header('Location: profile.php' . ($viewId ? '?id='.$viewId : ''));
+    exit();
+  }
+}
 
 // Handle profile edit form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'edit_profile') {
@@ -125,11 +218,61 @@ try {
 
 // fetch warnings for this user (if any)
 $warnings = [];
-try { $warnings = $adminController->getUserWarnings($viewId, 50); } catch (Exception $e) { $warnings = []; }
+try { $warnings = $adminController->getUserWarnings($viewId); } catch (Exception $e) { $warnings = []; }
 $warningsCount = is_array($warnings) ? count($warnings) : 0;
+
+// Check blocking status
+$isBlocked = false; // Current user blocked by this profile
+$hasBlocked = false; // Current user has blocked this profile
+if ($viewId && $viewId != $_SESSION['user_id']) {
+  try {
+    // Check if current user is blocked by the profile user
+    $isBlocked = $adminController->isUserBlocked($viewId, $_SESSION['user_id']);
+    
+    // Check if current user has blocked the profile user  
+    $hasBlocked = $adminController->isUserBlocked($_SESSION['user_id'], $viewId);
+  } catch (Exception $e) {
+    $isBlocked = false;
+    $hasBlocked = false;
+  }
+}
+
+// If current user is blocked by profile owner, show restricted access
+if ($isBlocked && !$isOwnProfile && ($_SESSION['role'] ?? '') !== 'admin') {
+  ?>
+  <?php require_once __DIR__ . '/../src/View/header.php'; ?>
+  <div class="container" style="margin-top:20px;">
+    <div class="profile-section" style="text-align:center;padding:40px;">
+      <h2 style="color:#ef4444;margin-bottom:16px;">🚫 Access Restricted</h2>
+      <p style="color:#666;font-size:16px;margin-bottom:20px;">This user has blocked you from viewing their profile.</p>
+      <a href="index.php" style="background:#3b82f6;color:white;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;">Return to Dashboard</a>
+    </div>
+  </div>
+  <?php require_once __DIR__ . '/../src/View/footer.php'; ?>
+  <?php exit(); ?>
+<?php
+}
 
 ?>
 <?php require_once __DIR__ . '/../src/View/header.php'; ?>
+
+<?php if (isset($_SESSION['success_message'])): ?>
+  <div class="container" style="margin-top:20px;">
+    <div style="background:#10b981;color:white;padding:12px 20px;border-radius:8px;margin-bottom:16px;">
+      ✅ <?php echo htmlspecialchars($_SESSION['success_message']); ?>
+    </div>
+  </div>
+  <?php unset($_SESSION['success_message']); ?>
+<?php endif; ?>
+
+<?php if (isset($_SESSION['error_message'])): ?>
+  <div class="container" style="margin-top:20px;">
+    <div style="background:#ef4444;color:white;padding:12px 20px;border-radius:8px;margin-bottom:16px;">
+      ❌ <?php echo htmlspecialchars($_SESSION['error_message']); ?>
+    </div>
+  </div>
+  <?php unset($_SESSION['error_message']); ?>
+<?php endif; ?>
 
 <style>
 .profile-section {
@@ -748,6 +891,11 @@ $warningsCount = is_array($warnings) ? count($warnings) : 0;
           <?php endif; ?>
           <?php if (isset($_SESSION['user_id']) && $_SESSION['user_id'] != $viewId): ?>
             <button class="btn danger small" onclick="openReportOnProfile(<?php echo $viewId; ?>, '<?php echo htmlspecialchars($profile['name'] ?? ''); ?>')" style="font-size:12px;padding:6px 12px">📋 Report</button>
+            <?php if (!$hasBlocked): ?>
+              <button class="btn danger small" onclick="openBlockUser(<?php echo $viewId; ?>, '<?php echo htmlspecialchars($profile['name'] ?? ''); ?>')" style="font-size:12px;padding:6px 12px">🚫 Block</button>
+            <?php else: ?>
+              <button class="btn secondary small" onclick="unblockUser(<?php echo $viewId; ?>, '<?php echo htmlspecialchars($profile['name'] ?? ''); ?>')" style="font-size:12px;padding:6px 12px">✅ Unblock</button>
+            <?php endif; ?>
           <?php endif; ?>
         </h2>
         
@@ -1015,29 +1163,60 @@ $warningsCount = is_array($warnings) ? count($warnings) : 0;
   <!-- Report Modal (profile) -->
   <?php if (isset($_SESSION['user_id']) && $_SESSION['user_id'] != $viewId): ?>
     <div id="profileReportModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
-      <div style="background:white; padding:20px; border-radius:8px; max-width:520px; width:90%;">
-        <h3 style="margin:0 0 12px 0">Report <?php echo htmlspecialchars($profile['name'] ?? ''); ?></h3>
-        <form method="POST" action="admin_user_management.php" id="profileReportForm">
+      <div style="background:white; padding:24px; border-radius:12px; width:90%; max-width:500px; box-shadow:0 8px 25px rgba(0,0,0,0.15);">
+        <h3 style="margin:0 0 8px 0; color:#dc2626; font-size:20px; font-weight:700;">📋 Report User</h3>
+        <p style="margin:0 0 20px 0; color:#6b7280; font-size:14px; line-height:1.5;">Please select a reason for reporting <strong style="color:#374151;"><?php echo htmlspecialchars($profile['name'] ?? ''); ?></strong>. Your report will be reviewed by our moderation team.</p>
+        
+        <form method="POST" action="profile.php<?php echo $viewId ? '?id='.$viewId : ''; ?>" id="profileReportForm">
           <input type="hidden" name="action" value="report_user">
           <input type="hidden" name="reported_user_id" id="profileReportUserId" value="<?php echo $viewId; ?>">
-          <div style="margin-bottom:10px">
-            <label for="profileReportReason" style="display:block;margin-bottom:6px;font-weight:600">Reason</label>
-            <select name="reason" id="profileReportReason" class="input" required>
-              <option value="">Select a reason</option>
-              <option value="spam">Spam</option>
-              <option value="harassment">Harassment</option>
-              <option value="inappropriate_content">Inappropriate Content</option>
-              <option value="fake_account">Fake Account</option>
-              <option value="other">Other</option>
+          
+          <div class="form-group" style="margin-bottom:20px;">
+            <label for="profileReportReason" style="display:block; margin-bottom:8px; font-weight:600; color:#374151; font-size:14px;">Report Reason *</label>
+            <select name="reason" id="profileReportReason" class="input" required style="width:100%;">
+              <option value="">Choose a reason for reporting...</option>
+              <option value="spam">🔴 Spam or unwanted content</option>
+              <option value="harassment">⚠️ Harassment or bullying</option>
+              <option value="inappropriate_content">🚫 Inappropriate or offensive content</option>
+              <option value="fake_account">👤 Fake or impersonation account</option>
+              <option value="other">📝 Other (please describe below)</option>
             </select>
           </div>
-          <div style="margin-bottom:10px">
-            <label for="profileReportDescription" style="display:block;margin-bottom:6px;font-weight:600">Description (optional)</label>
-            <textarea name="description" id="profileReportDescription" class="input" rows="3"></textarea>
+          
+          <div class="form-group" style="margin-bottom:24px;">
+            <label for="profileReportDescription" style="display:block; margin-bottom:8px; font-weight:600; color:#374151; font-size:14px;">Additional Details</label>
+            <textarea name="description" id="profileReportDescription" class="input" rows="4" placeholder="Please provide specific details about the issue. Include any relevant context that would help our moderation team understand the situation..." style="width:100%; resize:vertical; min-height:100px;"></textarea>
+            <small style="color:#6b7280; font-size:12px; margin-top:4px; display:block;">Optional: Help us understand the situation better with additional context.</small>
           </div>
-          <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button type="button" class="btn secondary" onclick="closeProfileReport()">Cancel</button>
-            <button type="submit" class="btn danger">Submit Report</button>
+          
+          <div style="display:flex; gap:12px; justify-content:flex-end; align-items:center; padding-top:8px; border-top:1px solid #f3f4f6;">
+            <button type="button" class="btn secondary" onclick="closeProfileReport()" style="padding:10px 20px; font-weight:500;">Cancel</button>
+            <button type="submit" class="btn danger" style="padding:10px 20px; font-weight:500; min-width:120px;">Submit Report</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  <?php endif; ?>
+
+  <!-- Block User Modal -->
+  <?php if (isset($_SESSION['user_id']) && $_SESSION['user_id'] != $viewId): ?>
+    <div id="blockUserModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+      <div style="background:white; padding:24px; border-radius:12px; width:90%; max-width:500px; box-shadow:0 8px 25px rgba(0,0,0,0.15);">
+        <h3 style="margin:0 0 8px 0; color:#dc2626; font-size:20px; font-weight:700;">🚫 Block User</h3>
+        <p style="margin:0 0 20px 0; color:#6b7280; font-size:14px; line-height:1.5;">Are you sure you want to block <strong id="blockUserName" style="color:#374151;"></strong>? They will no longer be able to view your profile or interact with you.</p>
+        
+        <form method="POST" action="profile.php<?php echo $viewId ? '?id='.$viewId : ''; ?>" id="blockUserForm">
+          <input type="hidden" name="action" value="block_user">
+          
+          <div class="form-group" style="margin-bottom:24px;">
+            <label for="blockReason" style="display:block; margin-bottom:8px; font-weight:600; color:#374151; font-size:14px;">Reason (Optional)</label>
+            <textarea name="block_reason" id="blockReason" class="input" rows="4" placeholder="Please provide a reason for blocking this user (e.g., harassment, spam, inappropriate behavior...)" style="width:100%; resize:vertical; min-height:100px;"></textarea>
+            <small style="color:#6b7280; font-size:12px; margin-top:4px; display:block;">This information helps us understand the situation better.</small>
+          </div>
+          
+          <div style="display:flex; gap:12px; justify-content:flex-end; align-items:center; padding-top:8px; border-top:1px solid #f3f4f6;">
+            <button type="button" class="btn secondary" onclick="closeBlockUser()" style="padding:10px 20px; font-weight:500;">Cancel</button>
+            <button type="submit" class="btn danger" style="padding:10px 20px; font-weight:500; min-width:120px;">Block User</button>
           </div>
         </form>
       </div>
@@ -1184,6 +1363,53 @@ function closeProfileReport() {
 window.addEventListener('click', function(e){
   const modal = document.getElementById('profileReportModal');
   if (e.target === modal) closeProfileReport();
+});
+
+// Block User Functions
+function openBlockUser(id, name) {
+  console.log('Opening block modal for user:', id, name);
+  document.getElementById('blockUserName').textContent = name;
+  document.getElementById('blockUserModal').style.display = 'flex';
+}
+
+function closeBlockUser() {
+  document.getElementById('blockUserModal').style.display = 'none';
+  document.getElementById('blockReason').value = '';
+}
+
+function unblockUser(id, name) {
+  console.log('Unblocking user:', id, name);
+  if (confirm('Are you sure you want to unblock ' + name + '?')) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = 'profile.php<?php echo $viewId ? '?id='.$viewId : ''; ?>';
+    
+    const actionInput = document.createElement('input');
+    actionInput.type = 'hidden';
+    actionInput.name = 'action';
+    actionInput.value = 'unblock_user';
+    
+    form.appendChild(actionInput);
+    document.body.appendChild(form);
+    console.log('Submitting unblock form');
+    form.submit();
+  }
+}
+
+// Add form submission debugging
+document.addEventListener('DOMContentLoaded', function() {
+  const blockForm = document.getElementById('blockUserForm');
+  if (blockForm) {
+    blockForm.addEventListener('submit', function(e) {
+      console.log('Block form being submitted');
+      console.log('Form data:', new FormData(blockForm));
+    });
+  }
+});
+
+window.addEventListener('click', function(e){
+  const blockModal = document.getElementById('blockUserModal');
+  if (e.target === blockModal) closeBlockUser();
 });
 <?php endif; ?>
 </script>

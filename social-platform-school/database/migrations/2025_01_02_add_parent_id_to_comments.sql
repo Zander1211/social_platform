@@ -1,3 +1,0 @@
-ALTER TABLE comments
-ADD COLUMN parent_id INT DEFAULT NULL,
-ADD FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE;

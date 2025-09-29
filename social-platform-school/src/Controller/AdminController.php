@@ -23,7 +23,7 @@ class AdminController
                        COALESCE(p.title, '') AS title,
                        COALESCE(p.content, '') AS content,
                        p.created_at,
-                       u.name AS author
+                       u.name AS user_name
                 FROM posts p
                 LEFT JOIN users u ON p.user_id = u.id
                 ORDER BY p.created_at DESC";
@@ -33,7 +33,7 @@ class AdminController
                        '' AS title,
                        COALESCE(p.caption, '') AS content,
                        p.created_at,
-                       u.name AS author
+                       u.name AS user_name
                 FROM posts p
                 LEFT JOIN users u ON p.user_id = u.id
                 ORDER BY p.created_at DESC";
@@ -209,85 +209,202 @@ class AdminController
         return true;
     }
 
-    // User behavior reporting and management
-    public function reportUser($reportedUserId, $reporterUserId, $reason, $description = '')
+    // Warning System Methods
+    public function issueWarning($userId, $reason, $level = 'low')
     {
         try {
-            // Create user_reports table if it doesn't exist
-            $this->createUserReportsTable();
-            
             $stmt = $this->pdo->prepare("
-                INSERT INTO user_reports (reported_user_id, reporter_user_id, reason, description, status, created_at) 
-                VALUES (:reported_user_id, :reporter_user_id, :reason, :description, 'pending', NOW())
+                INSERT INTO user_warnings (user_id, reason, warning_level, is_active, created_at) 
+                VALUES (?, ?, ?, 1, NOW())
             ");
+            $result = $stmt->execute([$userId, $reason, $level]);
             
-            return $stmt->execute([
-                ':reported_user_id' => $reportedUserId,
-                ':reporter_user_id' => $reporterUserId,
-                ':reason' => $reason,
-                ':description' => $description
-            ]);
-        } catch (Exception $e) {
+            if ($result) {
+                // Log the warning action
+                $this->logWarningAction($userId, 'warning_issued', "Warning issued: $level - $reason");
+                return $this->pdo->lastInsertId();
+            }
+            return false;
+        } catch (PDOException $e) {
             return false;
         }
     }
 
-    public function getAllUserReports($limit = 100)
+    public function getUserWarnings($userId)
     {
         try {
-            $this->createUserReportsTable();
-            
-            $limit = (int)$limit; 
-            if ($limit <= 0) { $limit = 100; }
-            
-            $sql = "
-                SELECT ur.id, ur.reason, ur.description, ur.status, ur.created_at,
-                       reported.name AS reported_user_name, reported.email AS reported_user_email,
-                       reporter.name AS reporter_name, reporter.email AS reporter_email,
-                       ur.reported_user_id, ur.reporter_user_id
-                FROM user_reports ur
-                LEFT JOIN users reported ON ur.reported_user_id = reported.id
-                LEFT JOIN users reporter ON ur.reporter_user_id = reporter.id
-                ORDER BY ur.created_at DESC
-                LIMIT $limit
-            ";
-            
-            $stmt = $this->pdo->query($sql);
-            return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-        } catch (Exception $e) {
+            $stmt = $this->pdo->prepare("
+                SELECT * FROM user_warnings 
+                WHERE user_id = ? AND is_active = 1 
+                ORDER BY created_at DESC
+            ");
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
             return [];
         }
     }
 
-    public function updateReportStatus($reportId, $status)
+    public function getAllWarnings()
     {
         try {
-            $stmt = $this->pdo->prepare("UPDATE user_reports SET status = :status WHERE id = :id");
-            return $stmt->execute([':status' => $status, ':id' => $reportId]);
-        } catch (Exception $e) {
+            $stmt = $this->pdo->query("
+                SELECT w.*, u.name as user_name, u.email as user_email 
+                FROM user_warnings w 
+                LEFT JOIN users u ON w.user_id = u.id 
+                WHERE w.is_active = 1 
+                ORDER BY w.created_at DESC
+            ");
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+
+    public function dismissWarning($warningId)
+    {
+        try {
+            $stmt = $this->pdo->prepare("UPDATE user_warnings SET is_active = 0 WHERE id = ?");
+            $result = $stmt->execute([$warningId]);
+            
+            if ($result) {
+                // Get warning details for logging
+                $warningStmt = $this->pdo->prepare("SELECT user_id FROM user_warnings WHERE id = ?");
+                $warningStmt->execute([$warningId]);
+                $warning = $warningStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($warning) {
+                    $this->logWarningAction($warning['user_id'], 'warning_dismissed', "Warning ID $warningId dismissed");
+                }
+            }
+            
+            return $result;
+        } catch (PDOException $e) {
             return false;
         }
     }
 
-    public function suspendUser($userId, $reason = '', $duration = null)
+    public function getWarningStats()
     {
         try {
-            // Create user_suspensions table if it doesn't exist
-            $this->createUserSuspensionsTable();
+            $stmt = $this->pdo->query("
+                SELECT 
+                    warning_level,
+                    COUNT(*) as count 
+                FROM user_warnings 
+                WHERE is_active = 1 
+                GROUP BY warning_level
+            ");
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+
+    // User Blocking System Methods
+    public function blockUser($blockerId, $blockedId, $reason = '')
+    {
+        try {
+            // Add debug logging
+            error_log("AdminController DEBUG: blockUser called with blocker=$blockerId, blocked=$blockedId, reason=$reason");
             
             $stmt = $this->pdo->prepare("
-                INSERT INTO user_suspensions (user_id, reason, suspended_until, created_at) 
-                VALUES (:user_id, :reason, :suspended_until, NOW())
+                INSERT INTO user_blocks (blocker_user_id, blocked_user_id, reason, is_active, created_at) 
+                VALUES (?, ?, ?, 1, NOW())
+                ON DUPLICATE KEY UPDATE is_active = 1, reason = ?, updated_at = NOW()
             ");
+            $result = $stmt->execute([$blockerId, $blockedId, $reason, $reason]);
             
-            $suspendedUntil = $duration ? date('Y-m-d H:i:s', strtotime($duration)) : null;
+            error_log("AdminController DEBUG: Query result = " . ($result ? 'TRUE' : 'FALSE'));
+            error_log("AdminController DEBUG: Affected rows = " . $stmt->rowCount());
             
-            return $stmt->execute([
-                ':user_id' => $userId,
-                ':reason' => $reason,
-                ':suspended_until' => $suspendedUntil
-            ]);
-        } catch (Exception $e) {
+            return $result;
+        } catch (PDOException $e) {
+            error_log("AdminController DEBUG: PDO Exception = " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function unblockUser($blockerId, $blockedId)
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                UPDATE user_blocks 
+                SET is_active = 0 
+                WHERE blocker_user_id = ? AND blocked_user_id = ? AND is_active = 1
+            ");
+            return $stmt->execute([$blockerId, $blockedId]);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    public function isUserBlocked($blockerId, $blockedId)
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT COUNT(*) FROM user_blocks 
+                WHERE blocker_user_id = ? AND blocked_user_id = ? AND is_active = 1
+            ");
+            $stmt->execute([$blockerId, $blockedId]);
+            return $stmt->fetchColumn() > 0;
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    public function getUserBlocks($userId)
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT b.*, u.name as blocked_user_name, u.email as blocked_user_email 
+                FROM user_blocks b 
+                LEFT JOIN users u ON b.blocked_user_id = u.id 
+                WHERE b.blocker_user_id = ? AND b.is_active = 1 
+                ORDER BY b.created_at DESC
+            ");
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+
+    public function getAllBlocks()
+    {
+        try {
+            $stmt = $this->pdo->query("
+                SELECT b.*, 
+                       u1.name as blocker_name, u1.email as blocker_email,
+                       u2.name as blocked_name, u2.email as blocked_email
+                FROM user_blocks b 
+                LEFT JOIN users u1 ON b.blocker_user_id = u1.id 
+                LEFT JOIN users u2 ON b.blocked_user_id = u2.id 
+                WHERE b.is_active = 1 
+                ORDER BY b.created_at DESC
+            ");
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+
+    // User Suspension System Methods
+    public function suspendUser($userId, $suspendedBy, $reason, $type = 'temporary', $until = null)
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                INSERT INTO user_suspensions (user_id, suspended_by_user_id, reason, suspension_type, suspended_until, is_active, created_at) 
+                VALUES (?, ?, ?, ?, ?, 1, NOW())
+            ");
+            $result = $stmt->execute([$userId, $suspendedBy, $reason, $type, $until]);
+            
+            if ($result) {
+                $this->logWarningAction($userId, 'user_suspended', "User suspended: $type - $reason");
+            }
+            
+            return $result;
+        } catch (PDOException $e) {
             return false;
         }
     }
@@ -295,34 +412,16 @@ class AdminController
     public function unsuspendUser($userId)
     {
         try {
-            $stmt = $this->pdo->prepare("DELETE FROM user_suspensions WHERE user_id = :user_id");
-            return $stmt->execute([':user_id' => $userId]);
-        } catch (Exception $e) {
+            $stmt = $this->pdo->prepare("UPDATE user_suspensions SET is_active = 0 WHERE user_id = ? AND is_active = 1");
+            $result = $stmt->execute([$userId]);
+            
+            if ($result) {
+                $this->logWarningAction($userId, 'user_unsuspended', "User suspension lifted");
+            }
+            
+            return $result;
+        } catch (PDOException $e) {
             return false;
-        }
-    }
-
-    public function getUserSuspensions($limit = 100)
-    {
-        try {
-            $this->createUserSuspensionsTable();
-            
-            $limit = (int)$limit;
-            if ($limit <= 0) { $limit = 100; }
-            
-            $sql = "
-                SELECT us.id, us.user_id, us.reason, us.suspended_until, us.created_at,
-                       u.name AS user_name, u.email AS user_email
-                FROM user_suspensions us
-                LEFT JOIN users u ON us.user_id = u.id
-                ORDER BY us.created_at DESC
-                LIMIT $limit
-            ";
-            
-            $stmt = $this->pdo->query($sql);
-            return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-        } catch (Exception $e) {
-            return [];
         }
     }
 
@@ -331,164 +430,194 @@ class AdminController
         try {
             $stmt = $this->pdo->prepare("
                 SELECT COUNT(*) FROM user_suspensions 
-                WHERE user_id = :user_id 
-                AND (suspended_until IS NULL OR suspended_until > NOW())
+                WHERE user_id = ? AND is_active = 1 
+                AND (suspension_type = 'permanent' OR suspended_until > NOW())
             ");
-            $stmt->execute([':user_id' => $userId]);
+            $stmt->execute([$userId]);
             return $stmt->fetchColumn() > 0;
-        } catch (Exception $e) {
+        } catch (PDOException $e) {
             return false;
         }
     }
 
-    public function getUserActivityStats($userId)
+    public function getUserSuspension($userId)
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT s.*, u.name as suspended_by_name 
+                FROM user_suspensions s 
+                LEFT JOIN users u ON s.suspended_by_user_id = u.id 
+                WHERE s.user_id = ? AND s.is_active = 1 
+                AND (s.suspension_type = 'permanent' OR s.suspended_until > NOW())
+                ORDER BY s.created_at DESC LIMIT 1
+            ");
+            $stmt->execute([$userId]);
+            return $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    public function getAllSuspensions()
+    {
+        try {
+            $stmt = $this->pdo->query("
+                SELECT s.*, 
+                       u1.name as user_name, u1.email as user_email,
+                       u2.name as suspended_by_name, u2.email as suspended_by_email
+                FROM user_suspensions s 
+                LEFT JOIN users u1 ON s.user_id = u1.id 
+                LEFT JOIN users u2 ON s.suspended_by_user_id = u2.id 
+                WHERE s.is_active = 1 
+                ORDER BY s.created_at DESC
+            ");
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+
+    // User Reporting System Methods
+    public function createReport($reporterUserId, $reportedUserId, $reportType, $reason, $contentId = null)
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                INSERT INTO user_reports (reporter_user_id, reported_user_id, report_type, reason, content_id, status, created_at) 
+                VALUES (?, ?, ?, ?, ?, 'pending', NOW())
+            ");
+            return $stmt->execute([$reporterUserId, $reportedUserId, $reportType, $reason, $contentId]);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    public function getAllReports($status = null)
+    {
+        try {
+            $sql = "
+                SELECT r.*, 
+                       u1.name as reporter_name, u1.email as reporter_email,
+                       u2.name as reported_name, u2.email as reported_email
+                FROM user_reports r 
+                LEFT JOIN users u1 ON r.reporter_user_id = u1.id 
+                LEFT JOIN users u2 ON r.reported_user_id = u2.id 
+            ";
+            
+            if ($status) {
+                $sql .= " WHERE r.status = ? ORDER BY r.created_at DESC";
+                $stmt = $this->pdo->prepare($sql);
+                $stmt->execute([$status]);
+            } else {
+                $sql .= " ORDER BY r.created_at DESC";
+                $stmt = $this->pdo->query($sql);
+            }
+            
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+
+    public function updateReportStatus($reportId, $status, $adminNotes = '')
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                UPDATE user_reports 
+                SET status = ?, admin_notes = ?, updated_at = NOW() 
+                WHERE id = ?
+            ");
+            return $stmt->execute([$status, $adminNotes, $reportId]);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    // Warning Action Logging
+    private function logWarningAction($userId, $actionType, $description)
+    {
+        try {
+            $stmt = $this->pdo->prepare("
+                INSERT INTO warning_actions (user_id, action_type, description, created_at) 
+                VALUES (?, ?, ?, NOW())
+            ");
+            return $stmt->execute([$userId, $actionType, $description]);
+        } catch (PDOException $e) {
+            return false;
+        }
+    }
+
+    public function getWarningActions($userId = null)
+    {
+        try {
+            if ($userId) {
+                $stmt = $this->pdo->prepare("
+                    SELECT wa.*, u.name as user_name 
+                    FROM warning_actions wa 
+                    LEFT JOIN users u ON wa.user_id = u.id 
+                    WHERE wa.user_id = ? 
+                    ORDER BY wa.created_at DESC
+                ");
+                $stmt->execute([$userId]);
+            } else {
+                $stmt = $this->pdo->query("
+                    SELECT wa.*, u.name as user_name 
+                    FROM warning_actions wa 
+                    LEFT JOIN users u ON wa.user_id = u.id 
+                    ORDER BY wa.created_at DESC
+                ");
+            }
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+
+    // Utility Methods for the Warning/Blocking System
+    public function getModerationStats()
     {
         try {
             $stats = [];
             
-            // Posts count
-            $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM posts WHERE user_id = :user_id");
-            $stmt->execute([':user_id' => $userId]);
-            $stats['posts_count'] = $stmt->fetchColumn();
+            // Warning stats
+            $stmt = $this->pdo->query("SELECT COUNT(*) FROM user_warnings WHERE is_active = 1");
+            $stats['active_warnings'] = $stmt->fetchColumn();
             
-            // Comments count
-            $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM comments WHERE user_id = :user_id");
-            $stmt->execute([':user_id' => $userId]);
-            $stats['comments_count'] = $stmt->fetchColumn();
+            // Block stats
+            $stmt = $this->pdo->query("SELECT COUNT(*) FROM user_blocks WHERE is_active = 1");
+            $stats['active_blocks'] = $stmt->fetchColumn();
             
-            // Reports against this user
-            $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM user_reports WHERE reported_user_id = :user_id");
-            $stmt->execute([':user_id' => $userId]);
-            $stats['reports_count'] = $stmt->fetchColumn();
-
-            // Warnings count against this user
-            try {
-                $stmt = $this->pdo->prepare("SELECT COUNT(*) FROM user_warnings WHERE warned_user_id = :user_id");
-                $stmt->execute([':user_id' => $userId]);
-                $stats['warnings_count'] = $stmt->fetchColumn();
-            } catch (Exception $e) {
-                $stats['warnings_count'] = 0;
-            }
+            // Suspension stats
+            $stmt = $this->pdo->query("SELECT COUNT(*) FROM user_suspensions WHERE is_active = 1");
+            $stats['active_suspensions'] = $stmt->fetchColumn();
             
-            // Last activity
-            $stmt = $this->pdo->prepare("
-                SELECT MAX(created_at) as last_activity FROM (
-                    SELECT created_at FROM posts WHERE user_id = :user_id
-                    UNION ALL
-                    SELECT created_at FROM comments WHERE user_id = :user_id
-                ) as activities
-            ");
-            $stmt->execute([':user_id' => $userId]);
-            $stats['last_activity'] = $stmt->fetchColumn();
+            // Report stats
+            $stmt = $this->pdo->query("SELECT COUNT(*) FROM user_reports WHERE status = 'pending'");
+            $stats['pending_reports'] = $stmt->fetchColumn();
             
             return $stats;
-        } catch (Exception $e) {
-            return ['posts_count' => 0, 'comments_count' => 0, 'reports_count' => 0, 'last_activity' => null];
+        } catch (PDOException $e) {
+            return [
+                'active_warnings' => 0,
+                'active_blocks' => 0,
+                'active_suspensions' => 0,
+                'pending_reports' => 0
+            ];
         }
     }
 
-    // Warnings management
-    public function warnUser($warnedUserId, $adminUserId, $reason = '', $notes = '')
+    public function cleanupExpiredSuspensions()
     {
         try {
-            $this->createUserWarningsTable();
-            $stmt = $this->pdo->prepare("INSERT INTO user_warnings (warned_user_id, warned_by_user_id, reason, notes, created_at) VALUES (:warned_user_id, :warned_by_user_id, :reason, :notes, NOW())");
-            return $stmt->execute([
-                ':warned_user_id' => $warnedUserId,
-                ':warned_by_user_id' => $adminUserId,
-                ':reason' => $reason,
-                ':notes' => $notes
-            ]);
-        } catch (Exception $e) {
+            $stmt = $this->pdo->prepare("
+                UPDATE user_suspensions 
+                SET is_active = 0 
+                WHERE suspension_type = 'temporary' 
+                AND suspended_until < NOW() 
+                AND is_active = 1
+            ");
+            return $stmt->execute();
+        } catch (PDOException $e) {
             return false;
-        }
-    }
-
-    public function getAllWarnings($limit = 100)
-    {
-        try {
-            $this->createUserWarningsTable();
-            $limit = (int)$limit; if ($limit <= 0) { $limit = 100; }
-            $sql = "SELECT uw.id, uw.warned_user_id, uw.warned_by_user_id, uw.reason, uw.notes, uw.created_at, u.name AS warned_user_name, a.name AS warned_by_name FROM user_warnings uw LEFT JOIN users u ON uw.warned_user_id = u.id LEFT JOIN users a ON uw.warned_by_user_id = a.id ORDER BY uw.created_at DESC LIMIT $limit";
-            $stmt = $this->pdo->query($sql);
-            return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-        } catch (Exception $e) {
-            return [];
-        }
-    }
-
-    public function getUserWarnings($userId, $limit = 100)
-    {
-        try {
-            $this->createUserWarningsTable();
-            $limit = (int)$limit; if ($limit <= 0) { $limit = 100; }
-            $sql = "SELECT uw.id, uw.reason, uw.notes, uw.created_at, a.name AS warned_by_name FROM user_warnings uw LEFT JOIN users a ON uw.warned_by_user_id = a.id WHERE uw.warned_user_id = :user_id ORDER BY uw.created_at DESC LIMIT $limit";
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute([':user_id' => $userId]);
-            return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-        } catch (Exception $e) {
-            return [];
-        }
-    }
-
-    private function createUserWarningsTable()
-    {
-        try {
-            $sql = "CREATE TABLE IF NOT EXISTS user_warnings (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                warned_user_id INT NOT NULL,
-                warned_by_user_id INT NOT NULL,
-                reason VARCHAR(255) DEFAULT NULL,
-                notes TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_warned_user (warned_user_id),
-                INDEX idx_warned_by (warned_by_user_id)
-            )";
-            $this->pdo->exec($sql);
-        } catch (Exception $e) {
-            // ignore
-        }
-    }
-
-    private function createUserReportsTable()
-    {
-        try {
-            $sql = "
-                CREATE TABLE IF NOT EXISTS user_reports (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    reported_user_id INT NOT NULL,
-                    reporter_user_id INT NOT NULL,
-                    reason VARCHAR(255) NOT NULL,
-                    description TEXT,
-                    status ENUM('pending', 'reviewed', 'resolved', 'dismissed') DEFAULT 'pending',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_reported_user (reported_user_id),
-                    INDEX idx_reporter (reporter_user_id),
-                    INDEX idx_status (status)
-                )
-            ";
-            $this->pdo->exec($sql);
-        } catch (Exception $e) {
-            // Table might already exist or there might be permission issues
-        }
-    }
-
-    private function createUserSuspensionsTable()
-    {
-        try {
-            $sql = "
-                CREATE TABLE IF NOT EXISTS user_suspensions (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    user_id INT NOT NULL,
-                    reason TEXT,
-                    suspended_until TIMESTAMP NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_user (user_id)
-                )
-            ";
-            $this->pdo->exec($sql);
-        } catch (Exception $e) {
-            // Table might already exist or there might be permission issues
         }
     }
 }
