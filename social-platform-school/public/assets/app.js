@@ -1,232 +1,415 @@
-// Minimal UI helpers: emoji picker, reaction AJAX, file button styling
-// Long-press / click behavior for reaction trigger (Like button)
-;(() => {
-  const holdTime = 400; // ms to trigger picker
-  let timer = null;
-  document.addEventListener('pointerdown', function(e){
-    const btn = e.target.closest && e.target.closest('.reaction-trigger');
-    if (!btn) return;
-    const pid = btn.getAttribute('data-post-id');
-    timer = setTimeout(function(){
-      const picker = document.querySelector('.emoji-picker[data-post-id="'+pid+'"]');
-      if (picker) picker.style.display = 'block';
-    }, holdTime);
-  });
-  document.addEventListener('pointerup', function(e){
-    const btn = e.target.closest && e.target.closest('.reaction-trigger');
-    if (timer) { clearTimeout(timer); timer = null; }
-    // quick click fallback: send a simple like
-    if (btn) {
-      const pid = btn.getAttribute('data-post-id');
-      const picker = document.querySelector('.emoji-picker[data-post-id="'+pid+'"]');
-      if (!picker || picker.style.display !== 'block') {
-        // send like
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', 'index.php', true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-        xhr.onload = function(){ try { var res = JSON.parse(xhr.responseText); if (res.ok) { location.reload(); } } catch(e) {} };
-        xhr.send('action=react&post_id='+encodeURIComponent(pid)+'&type=like');
-      }
-    }
-  });
-})();
-// handle emoji clicks from the per-post picker
-document.addEventListener('click', function(e){
-  var emoji = e.target.closest && e.target.closest('.emoji');
-  if (emoji) {
-    var type = emoji.getAttribute('data-type');
-    var pid = emoji.closest('.emoji-picker').getAttribute('data-post-id');
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'index.php', true);
-    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-    xhr.onload = function(){ try { var res = JSON.parse(xhr.responseText); if (res.ok) { location.reload(); } } catch(e) { console.error(e); } };
-    xhr.send('action=react&post_id='+encodeURIComponent(pid)+'&type='+encodeURIComponent(type));
-  }
-});
-// send a simple 'like' when the Like button (reaction-trigger) is clicked (if no emoji picker present)
-// removed redundant click handler — handled by long-press logic above
+// Main Application JavaScript for School Platform
 
-// comment button scrolls to the comments area in the post
-document.addEventListener('click', function(e){
-  var cb = e.target.closest && e.target.closest('.comment-btn');
-  if (cb) {
-    var pid = cb.getAttribute('data-post-id');
-    var post = document.querySelector('.post.card input[data-post-id="'+pid+'"], .post.card[data-post-id="'+pid+'"], .post.card');
-    // naive: scroll to the first .comments element inside nearest .post
-    var p = cb.closest('.post');
-    if (p) {
-      var comments = p.querySelector('.comments');
-      if (comments) comments.scrollIntoView({behavior:'smooth', block:'center'});
-    }
-  }
-});
-document.addEventListener('change', function(e){
-  var f = e.target;
-  if (f.type === 'file') {
-    var label = f.closest('.file-btn');
-    if (label) label.classList.add('has-file');
-  }
+// Initialize application when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    initializeApp();
 });
 
-// handle icon-only reaction buttons (click to react) and show list of reactors on right-click (or click when holding alt)
-document.addEventListener('click', function(e){
-  var btn = e.target.closest && e.target.closest('.reaction-icon');
-  if (btn) {
-    var postId = btn.getAttribute('data-post-id');
-    var type = btn.getAttribute('data-type');
-    // send reaction via POST
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', 'index.php', true);
-    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-    xhr.onload = function(){ try { var res = JSON.parse(xhr.responseText); if (res.ok) { location.reload(); } } catch(e) {} };
-    xhr.send('action=react&post_id='+encodeURIComponent(postId)+'&type='+encodeURIComponent(type));
-  }
-});
+function initializeApp() {
+    // Initialize all components
+    initializeAnimations();
+    initializeInteractions();
+    initializeFormEnhancements();
+    initializeNotifications();
+    initializeTheme();
+    
+    console.log('School Platform initialized successfully');
+}
 
-// AJAX comment submit handler
-document.addEventListener('submit', function(e){
-  var form = e.target.closest && e.target.closest('.comment-form');
-  if (!form) return;
-  e.preventDefault();
-  var postId = form.getAttribute('data-post-id');
-  var content = (form.querySelector('textarea[name="content"]') || {}).value || '';
-  if (!content.trim()) return;
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', 'index.php', true);
-  xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-  xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-  xhr.onload = function(){
-    try {
-      var res = JSON.parse(xhr.responseText);
-      if (res.status === 'success') {
-        // append comment to UI
-        var comments = form.previousElementSibling; // the .comments div is before the form
-        if (comments && comments.classList.contains('comments')) {
-          var div = document.createElement('div'); div.className='comment'; div.innerHTML = '<strong>'+(res.author||'You')+':</strong> '+(content);
-          comments.appendChild(div);
-        }
-        // update comments count
-        var cc = document.querySelector('.comments-count[data-post-id="'+postId+'"]');
-        if (cc) {
-          var n = parseInt(cc.getAttribute('data-count')||cc.textContent)||0; n = n+1; cc.textContent = n+' comments'; cc.setAttribute('data-count', n);
-        }
-        form.querySelector('textarea[name="content"]').value = '';
-      }
-    } catch(e) { console.error(e); }
-  };
-  xhr.send('action=add_comment&post_id='+encodeURIComponent(postId)+'&content='+encodeURIComponent(content));
-});
-
-// show reactors list when clicking the reaction total element
-document.addEventListener('click', function(e){
-  var rc = e.target.closest && e.target.closest('.reaction-total');
-  if (rc) {
-    var pid = rc.id.replace('reactions-','');
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', 'index.php?action=reactions&post_id='+encodeURIComponent(pid), true);
-    xhr.onload = function(){
-      try {
-        var data = JSON.parse(xhr.responseText) || [];
-        var html = '<div class="reactors-popup">';
-        if (!data || data.length === 0) html += '<div class="kv">No reactions yet</div>';
-        data.forEach(function(r){
-          html += '<div class="reactor-row">';
-          html += '<div class="reactor-avatar">';
-          if (r.avatar) html += '<img src="'+r.avatar+'" alt="avatar">'; else html += '<div class="placeholder"></div>';
-          html += '</div>';
-          html += '<div class="reactor-info"><div class="name"><a href="profile.php?id='+encodeURIComponent(r.id)+'">'+(r.name||'')+'</a></div><div class="kv">'+(r.type||'')+'</div></div>';
-          html += '<div class="reactor-action"><a class="btn small" href="profile.php?id='+encodeURIComponent(r.id)+'">Add friend</a></div>';
-          html += '</div>';
-        });
-        html += '</div>';
-        // temporary modal
-        var div = document.createElement('div'); div.className='reactors-modal'; div.innerHTML = html;
-        document.body.appendChild(div);
-        // clicking anywhere on the modal removes it
-        setTimeout(function(){ div.addEventListener('click', function(){ div.remove(); }) }, 10);
-      } catch(e) { console.error(e); }
+// Animation System
+function initializeAnimations() {
+    // Intersection Observer for scroll animations
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
     };
-    xhr.send();
-  }
-});
-
-
-// Avatar change confirmation functionality
-(function(){
-  function hideModal() {
-    var modal = document.getElementById('avatarConfirmModal');
-    if (!modal) return;
-    modal.style.display = 'none';
-    var previewImage = document.getElementById('previewImage');
-    var previewPlaceholder = document.getElementById('previewPlaceholder');
-    if (previewImage) {
-      previewImage.style.display = 'none';
-      previewImage.src = '';
-    }
-    if (previewPlaceholder) {
-      previewPlaceholder.style.display = 'flex';
-      previewPlaceholder.textContent = 'Preview';
-    }
-  }
-
-  // expose functions for inline onclick handlers in the markup
-  window.confirmAvatarChange = function() {
-    var submitBtn = document.getElementById('avatarSubmit');
-    if (submitBtn) submitBtn.click();
-    hideModal();
-  };
-  window.cancelAvatarChange = function() {
-    var avatarInput = document.getElementById('avatarInput');
-    if (avatarInput) avatarInput.value = '';
-    hideModal();
-  };
-  window.hideModal = hideModal;
-
-  document.addEventListener('DOMContentLoaded', function() {
-    var avatarInput = document.getElementById('avatarInput');
-    var modal = document.getElementById('avatarConfirmModal');
-    var previewImage = document.getElementById('previewImage');
-    var previewPlaceholder = document.getElementById('previewPlaceholder');
-
-    if (!avatarInput) return;
-
-    avatarInput.addEventListener('change', function() {
-      if (!this.files || !this.files[0]) return;
-      var file = this.files[0];
-
-      if (file.type && file.type.indexOf('image/') === 0) {
-        var reader = new FileReader();
-        reader.onload = function(ev) {
-          if (previewImage) {
-            previewImage.src = ev.target.result;
-            previewImage.style.display = 'block';
-          }
-          if (previewPlaceholder) previewPlaceholder.style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-      } else {
-        if (previewImage) {
-          previewImage.style.display = 'none';
-          previewImage.src = '';
-        }
-        if (previewPlaceholder) {
-          previewPlaceholder.style.display = 'flex';
-          previewPlaceholder.textContent = 'Not an image';
-        }
-      }
-
-      if (modal) modal.style.display = 'flex';
+    
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animate-in');
+            }
+        });
+    }, observerOptions);
+    
+    // Observe all animatable elements
+    document.querySelectorAll('.card, .post, .form-group').forEach(el => {
+        observer.observe(el);
     });
-  });
+    
+    // Add CSS for scroll animations
+    const style = document.createElement('style');
+    style.textContent = `
+        .card, .post, .form-group {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.6s ease-out;
+        }
+        
+        .animate-in {
+            opacity: 1 !important;
+            transform: translateY(0) !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
 
-  // click outside to close
-  document.addEventListener('click', function(e) {
-    var modal = document.getElementById('avatarConfirmModal');
-    if (modal && modal.style.display === 'flex' && e.target === modal) {
-      window.cancelAvatarChange();
+// Interactive Elements
+function initializeInteractions() {
+    // Enhanced button interactions
+    document.querySelectorAll('.btn, .nav-item, .post-action').forEach(button => {
+        button.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-2px)';
+        });
+        
+        button.addEventListener('mouseleave', function() {
+            this.style.transform = '';
+        });
+        
+        button.addEventListener('mousedown', function() {
+            this.style.transform = 'translateY(0)';
+        });
+        
+        button.addEventListener('mouseup', function() {
+            this.style.transform = 'translateY(-2px)';
+        });
+    });
+    
+    // Ripple effect for buttons
+    document.querySelectorAll('.btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.cssText = `
+                position: absolute;
+                width: ${size}px;
+                height: ${size}px;
+                left: ${x}px;
+                top: ${y}px;
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 50%;
+                transform: scale(0);
+                animation: ripple 0.6s ease-out;
+                pointer-events: none;
+            `;
+            
+            this.style.position = 'relative';
+            this.style.overflow = 'hidden';
+            this.appendChild(ripple);
+            
+            setTimeout(() => ripple.remove(), 600);
+        });
+    });
+    
+    // Add ripple animation CSS
+    const rippleStyle = document.createElement('style');
+    rippleStyle.textContent = `
+        @keyframes ripple {
+            to {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(rippleStyle);
+}
+
+// Form Enhancements
+function initializeFormEnhancements() {
+    // Floating labels
+    document.querySelectorAll('.form-input').forEach(input => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'form-input-wrapper';
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+        
+        if (input.placeholder) {
+            const label = document.createElement('label');
+            label.textContent = input.placeholder;
+            label.className = 'floating-label';
+            wrapper.appendChild(label);
+            input.placeholder = '';
+            
+            // Handle focus/blur events
+            input.addEventListener('focus', () => {
+                label.classList.add('active');
+            });
+            
+            input.addEventListener('blur', () => {
+                if (!input.value) {
+                    label.classList.remove('active');
+                }
+            });
+            
+            // Check initial value
+            if (input.value) {
+                label.classList.add('active');
+            }
+        }
+    });
+    
+    // Add floating label styles
+    const labelStyle = document.createElement('style');
+    labelStyle.textContent = `
+        .form-input-wrapper {
+            position: relative;
+        }
+        
+        .floating-label {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--bg-primary);
+            padding: 0 0.5rem;
+            color: var(--text-tertiary);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            font-size: 1rem;
+        }
+        
+        .floating-label.active {
+            top: 0;
+            font-size: 0.8rem;
+            color: var(--primary-blue);
+            font-weight: 600;
+        }
+        
+        .form-input:focus + .floating-label {
+            color: var(--primary-blue);
+        }
+    `;
+    document.head.appendChild(labelStyle);
+    
+    // Form validation feedback
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const inputs = this.querySelectorAll('.form-input[required]');
+            let isValid = true;
+            
+            inputs.forEach(input => {
+                if (!input.value.trim()) {
+                    showFieldError(input, 'This field is required');
+                    isValid = false;
+                } else {
+                    clearFieldError(input);
+                }
+            });
+            
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+    });
+}
+
+function showFieldError(input, message) {
+    clearFieldError(input);
+    
+    input.style.borderColor = 'var(--secondary-red)';
+    
+    const error = document.createElement('div');
+    error.className = 'field-error';
+    error.textContent = message;
+    error.style.cssText = `
+        color: var(--secondary-red);
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+        animation: slideDown 0.3s ease-out;
+    `;
+    
+    input.parentNode.appendChild(error);
+}
+
+function clearFieldError(input) {
+    input.style.borderColor = '';
+    const error = input.parentNode.querySelector('.field-error');
+    if (error) {
+        error.remove();
     }
-  });
-})();
+}
+
+// Notification System
+function initializeNotifications() {
+    window.showNotification = function(message, type = 'info', duration = 5000) {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i class="fas fa-${getNotificationIcon(type)}"></i>
+                <span>${message}</span>
+            </div>
+            <button class="notification-close">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--bg-primary);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-xl);
+            padding: 1rem 1.5rem;
+            z-index: 3000;
+            max-width: 400px;
+            border-left: 4px solid var(--${getNotificationColor(type)});
+            animation: slideInRight 0.3s ease-out;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto remove
+        setTimeout(() => {
+            notification.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }, duration);
+        
+        // Manual close
+        notification.querySelector('.notification-close').addEventListener('click', () => {
+            notification.style.animation = 'slideOutRight 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        });
+    };
+    
+    // Add notification styles
+    const notificationStyle = document.createElement('style');
+    notificationStyle.textContent = `
+        .notification-content {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .notification-close {
+            background: none;
+            border: none;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            padding: 0.25rem;
+            margin-left: 1rem;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOutRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(notificationStyle);
+}
+
+function getNotificationIcon(type) {
+    const icons = {
+        info: 'info-circle',
+        success: 'check-circle',
+        warning: 'exclamation-triangle',
+        error: 'exclamation-circle'
+    };
+    return icons[type] || 'info-circle';
+}
+
+function getNotificationColor(type) {
+    const colors = {
+        info: 'primary-blue',
+        success: 'secondary-green',
+        warning: 'secondary-orange',
+        error: 'secondary-red'
+    };
+    return colors[type] || 'primary-blue';
+}
+
+// Theme System
+function initializeTheme() {
+    // Theme toggle functionality
+    const themeToggle = document.createElement('button');
+    themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+    themeToggle.className = 'theme-toggle';
+    themeToggle.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: var(--bg-primary);
+        border: 2px solid var(--gray-200);
+        color: var(--text-primary);
+        cursor: pointer;
+        box-shadow: var(--shadow-lg);
+        transition: all 0.3s ease;
+        z-index: 1000;
+    `;
+    
+    document.body.appendChild(themeToggle);
+    
+    themeToggle.addEventListener('click', function() {
+        document.body.classList.toggle('dark-theme');
+        const isDark = document.body.classList.contains('dark-theme');
+        this.innerHTML = `<i class="fas fa-${isDark ? 'sun' : 'moon'}"></i>`;
+        
+        // Save preference
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    });
+    
+    // Load saved theme
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark-theme');
+        themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+    }
+}
+
+// Utility Functions
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function throttle(func, limit) {
+    let inThrottle;
+    return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+// Export functions for global use
+window.SchoolPlatform = {
+    showNotification,
+    debounce,
+    throttle
+};

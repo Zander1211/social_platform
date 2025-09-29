@@ -302,232 +302,277 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     </div>
     <?php endif; ?>
     
-    <div class="container">
-    <?php 
-      $scope = $_GET['scope'] ?? 'all';
-      $uc = new UserController($pdo);
-      $showUserResults = ($scope === 'users');
-      
-      // Enhanced search logic: if there's a search query, also search for users
-      $searchQuery = $q && trim($q) !== '' ? $q : '';
-      $users = [];
-      
-      // If scope is 'users', show people search results
-      if ($showUserResults) {
-        // If there's a search query, use it; otherwise show all users
-        $users = $searchQuery ? $uc->searchUsers($searchQuery, 50) : $uc->getAllUsers(50);
-        
-        echo '<section class="card people-section">';
-        echo '<div class="section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
-        echo '<h2><i class="fa fa-users"></i> People</h2>';
-        if ($searchQuery) {
-          echo '<div class="search-info">Search results for "<strong>'.htmlspecialchars($searchQuery).'</strong>"</div>';
-        } else {
-          echo '<div class="search-info">All users</div>';
-        }
-        echo '</div>';
-        
-        if (!$users || empty($users)) {
-          echo '<div class="no-results" style="text-align:center;padding:40px;color:#6b7280;">';
-          echo '<i class="fa fa-users" style="font-size:48px;margin-bottom:16px;opacity:0.5;"></i>';
-          echo '<div style="font-size:18px;margin-bottom:8px;">No people found</div>';
-          if ($searchQuery) {
-            echo '<div>Try searching with different keywords or <a href="index.php?scope=users">browse all users</a></div>';
+        <!-- Main Content Container -->
+        <div class="content-container">
+        <?php 
+          $scope = $_GET['scope'] ?? 'all';
+          $uc = new UserController($pdo);
+          $showUserResults = ($scope === 'users');
+          
+          // Enhanced search logic: if there's a search query, also search for users
+          $searchQuery = $q && trim($q) !== '' ? $q : '';
+          $users = [];
+          
+          // If scope is 'users', show people search results
+          if ($showUserResults) {
+            // If there's a search query, use it; otherwise show all users
+            $users = $searchQuery ? $uc->searchUsers($searchQuery, 50) : $uc->getAllUsers(50);
+            
+            echo '<section class="content-card people-section">';
+            echo '<div class="section-header">';
+            echo '<h2><i class="fas fa-users"></i> People</h2>';
+            if ($searchQuery) {
+              echo '<div class="search-info">Search results for "<strong>'.htmlspecialchars($searchQuery).'</strong>"</div>';
+            } else {
+              echo '<div class="search-info">All users</div>';
+            }
+            echo '</div>';
+            
+            if (!$users || empty($users)) {
+              echo '<div class="no-results">';
+              echo '<i class="fas fa-users"></i>';
+              echo '<div class="no-results-title">No people found</div>';
+              if ($searchQuery) {
+                echo '<div class="no-results-text">Try searching with different keywords or <a href="index.php?scope=users">browse all users</a></div>';
+              } else {
+                echo '<div class="no-results-text">No users are registered yet.</div>';
+              }
+              echo '</div>';
+            } else {
+              echo '<div class="people-grid">';
+              foreach ($users as $u) {
+                $uid = (int)$u['id'];
+                $avatar = null;
+                $glob = glob(__DIR__ . '/uploads/avatar_' . $uid . '.*');
+                if ($glob) $avatar = 'uploads/' . basename($glob[0]);
+                
+                echo '<div class="person-card">';
+                echo '<div class="person-header">';
+                echo '<div class="person-avatar">';
+                if ($avatar) {
+                  echo '<img src="'.$avatar.'" alt="'.htmlspecialchars($u['name'] ?? '').'\'s avatar">';
+                } else {
+                  echo '<i class="fas fa-user"></i>';
+                }
+                echo '</div>';
+                echo '<div class="person-info">';
+                echo '<div class="person-name"><a href="profile.php?id='.$uid.'">'.htmlspecialchars($u['name'] ?? '').'</a></div>';
+                echo '<div class="person-role">'.htmlspecialchars($u['role'] ?? 'Student').'</div>';
+                echo '<div class="person-email">'.htmlspecialchars($u['email'] ?? '').'</div>';
+                echo '</div>';
+                echo '</div>';
+                
+                // Action buttons
+                echo '<div class="person-actions">';
+                echo '<a href="profile.php?id='.$uid.'" class="btn secondary"><i class="fas fa-user"></i> View Profile</a>';
+                if (isset($_SESSION['user_id']) && $_SESSION['user_id'] != $uid) {
+                  echo '<a href="chat.php" class="btn primary"><i class="fas fa-comments"></i> Message</a>';
+                }
+                echo '</div>';
+                echo '</div>';
+              }
+              echo '</div>';
+              
+              // Show count
+              echo '<div class="results-count">';
+              echo 'Showing '.count($users).' '.($searchQuery ? 'search results' : 'users');
+              echo '</div>';
+            }
+            echo '</section>';
+          }
+          
+          // If there's a search query but scope is not 'users', still search for users to show as suggestions
+          if ($searchQuery && !$showUserResults) {
+            $users = $uc->searchUsers($searchQuery, 10); // Limit to 10 for suggestions
+            
+            // Show user search results as a suggestion section if users are found
+            if (!empty($users)) {
+              echo '<section class="content-card user-suggestions-section">';
+              echo '<div class="section-header">';
+              echo '<h3><i class="fas fa-users"></i> People matching "<strong>'.htmlspecialchars($searchQuery).'</strong>"</h3>';
+              echo '<a href="index.php?q='.urlencode($searchQuery).'&scope=users" class="btn secondary small">View All People</a>';
+              echo '</div>';
+              
+              echo '<div class="people-grid compact">';
+              foreach ($users as $u) {
+                $uid = (int)$u['id'];
+                $avatar = null;
+                $glob = glob(__DIR__ . '/uploads/avatar_' . $uid . '.*');
+                if ($glob) $avatar = 'uploads/' . basename($glob[0]);
+                
+                echo '<div class="person-card compact">';
+                echo '<div class="person-header">';
+                echo '<div class="person-avatar small">';
+                if ($avatar) {
+                  echo '<img src="'.$avatar.'" alt="'.htmlspecialchars($u['name'] ?? '').'\'s avatar">';
+                } else {
+                  echo '<i class="fas fa-user"></i>';
+                }
+                echo '</div>';
+                echo '<div class="person-info">';
+                echo '<div class="person-name"><a href="profile.php?id='.$uid.'">'.htmlspecialchars($u['name'] ?? '').'</a></div>';
+                echo '<div class="person-role">'.htmlspecialchars($u['role'] ?? 'Student').'</div>';
+                echo '</div>';
+                echo '<div class="person-actions compact">';
+                echo '<a href="profile.php?id='.$uid.'" class="btn secondary small"><i class="fas fa-user"></i></a>';
+                if (isset($_SESSION['user_id']) && $_SESSION['user_id'] != $uid) {
+                  echo '<a href="chat.php" class="btn primary small"><i class="fas fa-comments"></i></a>';
+                }
+                echo '</div>';
+                echo '</div>';
+                echo '</div>';
+              }
+              echo '</div>';
+              
+              echo '<div class="results-count small">';
+              echo 'Showing '.count($users).' people • <a href="index.php?q='.urlencode($searchQuery).'&scope=users">View all people results</a>';
+              echo '</div>';
+              echo '</section>';
+            }
+          }
+
+          $filter = $_GET['filter'] ?? null;
+          $posts = $postController->getAllPosts($q, $filter);
+          echo '<section class="content-card posts-section">';
+          echo '<div class="section-header">';
+          echo '<h2><i class="fas fa-newspaper"></i> News Feed</h2>';
+          echo '</div>';
+          
+          if (!$posts) {
+            echo '<div class="no-results">';
+            if ($searchQuery && !empty($users)) {
+              echo '<i class="fas fa-search"></i>';
+              echo '<div class="no-results-title">No posts found</div>';
+              echo '<div class="no-results-text">No posts found for "<strong>'.htmlspecialchars($searchQuery).'</strong>", but we found people with that name above.</div>';
+            } else if ($searchQuery) {
+              echo '<i class="fas fa-search"></i>';
+              echo '<div class="no-results-title">No results found</div>';
+              echo '<div class="no-results-text">No posts or people found for "<strong>'.htmlspecialchars($searchQuery).'</strong>".</div>';
+            } else {
+              echo '<i class="fas fa-newspaper"></i>';
+              echo '<div class="no-results-title">No posts found</div>';
+              echo '<div class="no-results-text">Be the first to create a post!</div>';
+            }
+            echo '</div>';
           } else {
-            echo '<div>No users are registered yet.</div>';
+            echo '<div class="posts-container">';
+            foreach ($posts as $p) {
+              echo '<article class="post-card">';
+              echo '<div class="post-header">';
+              echo '<div class="post-meta">';
+              echo '<span class="post-author">'.htmlspecialchars($p['author'] ?? '').'</span>';
+              echo '<span class="post-date">'.htmlspecialchars($p['created_at'] ?? '').'</span>';
+              echo '</div>';
+              echo '</div>';
+              
+              echo '<div class="post-content">';
+              echo '<h3 class="post-title">'.htmlspecialchars($p['title'] ?? '').'</h3>';
+              
+              $rawContent = $p['content'] ?? '';
+              
+              // Use improved attachment parsing
+              $attachments = parseAttachments($rawContent);
+              
+              // Strip anchor tags that link to uploads and any [Attachment: ...] text markers
+              $displayContent = preg_replace('%<a[^>]+href=["\']?uploads/[^"\'>]+[^>]*>.*?</a>%is', '', $rawContent);
+              $displayContent = preg_replace('%\[Attachment:[^\]]*\]%i', '', $displayContent);
+              $displayContent = trim($displayContent);
+              
+              echo '<div class="post-text">'.nl2br(htmlspecialchars($displayContent)).'</div>';
+              
+              // Display attachments using improved rendering
+              if (!empty($attachments)) {
+                echo '<div class="post-attachments">';
+                foreach ($attachments as $attachmentPath) {
+                  echo renderAttachment($attachmentPath);
+                }
+                echo '</div>';
+              }
+              
+              if (!empty($p['event'])) {
+                echo '<div class="post-event">';
+                echo '<i class="fas fa-calendar"></i>';
+                echo '<span>Event: '.htmlspecialchars($p['event']['title'] ?? '').' on '.htmlspecialchars($p['event']['event_date'] ?? '').'</span>';
+                echo '</div>';
+              }
+              echo '</div>';
+
+              // Reactions and comments UI
+              $pid = (int)($p['id'] ?? 0);
+              $rx = $reactionController->getReactions($pid);
+              $rxTotal = is_array($rx) ? count($rx) : 0;
+              $rxCounts = ['like'=>0,'haha'=>0,'heart'=>0,'sad'=>0,'angry'=>0];
+              if (is_array($rx)) { foreach ($rx as $r0) { if (!empty($r0['type']) && isset($rxCounts[$r0['type']])) { $rxCounts[$r0['type']]++; } } }
+
+              $comments = $commentController->getComments($pid);
+              $cTotal = is_array($comments) ? count($comments) : 0;
+
+              echo '<div class="post-footer">';
+              echo '<div class="post-stats">';
+              echo '<div class="reaction-stats" id="reactions-'.$pid.'" data-post-id="'.$pid.'">';
+              echo '<i class="fas fa-heart"></i>';
+              echo '<span>'.($rxTotal ? $rxTotal.' reactions' : 'No reactions').'</span>';
+              echo '</div>';
+              echo '<div class="comment-stats">';
+              echo '<i class="fas fa-comment"></i>';
+              echo '<span>'.$cTotal.' comments</span>';
+              echo '</div>';
+              echo '</div>';
+              
+              echo '<div class="post-actions">';
+              echo '<button class="action-btn reaction-trigger" data-post-id="'.$pid.'">';
+              echo '<i class="fas fa-thumbs-up"></i>';
+              echo '<span>Like</span>';
+              echo '</button>';
+              echo '<button class="action-btn comment-btn" data-post-id="'.$pid.'">';
+              echo '<i class="fas fa-comment"></i>';
+              echo '<span>Comment</span>';
+              echo '</button>';
+              echo '</div>';
+              
+              // emoji picker for this post
+              echo '<div class="emoji-picker" data-post-id="'.$pid.'" style="display:none">';
+              echo '<span class="emoji" data-type="like" title="Like">👍</span>';
+              echo '<span class="emoji" data-type="heart" title="Love">❤️</span>';
+              echo '<span class="emoji" data-type="haha" title="Haha">😂</span>';
+              echo '<span class="emoji" data-type="sad" title="Sad">😢</span>';
+              echo '<span class="emoji" data-type="angry" title="Angry">😡</span>';
+              echo '</div>';
+              echo '</div>';
+
+              // comments section
+              echo '<div class="post-comments">';
+              if ($comments) {
+                echo '<div class="comments-list">';
+                foreach ($comments as $c) {
+                  $author = htmlspecialchars($c['author'] ?? '');
+                  $text = nl2br(htmlspecialchars($c['content'] ?? ''));
+                  echo '<div class="comment-item">';
+                  echo '<div class="comment-author">'.$author.'</div>';
+                  echo '<div class="comment-text">'.$text.'</div>';
+                  echo '</div>';
+                }
+                echo '</div>';
+              }
+              
+              // comment form (AJAX handled in assets/app.js)
+              echo '<form class="comment-form" data-post-id="'.$pid.'">';
+              echo '<div class="comment-input-group">';
+              echo '<textarea class="comment-input" name="content" placeholder="Write a comment..." rows="2" required></textarea>';
+              echo '<button class="comment-submit" type="submit">';
+              echo '<i class="fas fa-paper-plane"></i>';
+              echo '</button>';
+              echo '</div>';
+              echo '</form>';
+              echo '</div>';
+
+              echo '</article>';
+            }
+            echo '</div>';
           }
-          echo '</div>';
-        } else {
-          echo '<div class="people-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">';
-          foreach ($users as $u) {
-            $uid = (int)$u['id'];
-            $avatar = null;
-            $glob = glob(__DIR__ . '/uploads/avatar_' . $uid . '.*');
-            if ($glob) $avatar = 'uploads/' . basename($glob[0]);
-            
-            echo '<div class="person-card card" style="padding:16px;transition:transform 0.2s ease,box-shadow 0.2s ease;" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 8px 25px rgba(0,0,0,0.1)\';" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'\';">';
-            echo '<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">';
-            echo '<div class="avatar" style="width:50px;height:50px;border-radius:50%;overflow:hidden;background:#e5e7eb;flex:0 0 auto;position:relative;">';
-            if ($avatar) {
-              echo '<img src="'.$avatar.'" style="width:100%;height:100%;object-fit:cover" alt="'.htmlspecialchars($u['name'] ?? '').'\'s avatar">';
-            } else {
-              echo '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:20px;"><i class="fa fa-user"></i></div>';
-            }
-            echo '</div>';
-            echo '<div style="flex:1;min-width:0;">';
-            echo '<div class="name" style="font-weight:600;font-size:16px;margin-bottom:4px;"><a href="profile.php?id='.$uid.'" style="text-decoration:none;color:#1f2937;">'.htmlspecialchars($u['name'] ?? '').'</a></div>';
-            echo '<div class="role" style="font-size:12px;color:#6b7280;text-transform:uppercase;font-weight:500;margin-bottom:2px;">'.htmlspecialchars($u['role'] ?? 'Student').'</div>';
-            echo '<div class="email" style="font-size:13px;color:#9ca3af;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'.htmlspecialchars($u['email'] ?? '').'</div>';
-            echo '</div>';
-            echo '</div>';
-            
-            // Action buttons
-            echo '<div class="person-actions" style="display:flex;gap:8px;">';
-            echo '<a href="profile.php?id='.$uid.'" class="btn secondary" style="flex:1;font-size:13px;padding:8px 12px;text-align:center;text-decoration:none;"><i class="fa fa-user"></i> View Profile</a>';
-            if (isset($_SESSION['user_id']) && $_SESSION['user_id'] != $uid) {
-              echo '<a href="chat.php" class="btn" style="flex:1;font-size:13px;padding:8px 12px;text-align:center;text-decoration:none;"><i class="fa fa-comments"></i> Message</a>';
-            }
-            echo '</div>';
-            echo '</div>';
-          }
-          echo '</div>';
-          
-          // Show count
-          echo '<div class="results-count" style="margin-top:16px;text-align:center;color:#6b7280;font-size:14px;">';
-          echo 'Showing '.count($users).' '.($searchQuery ? 'search results' : 'users');
-          echo '</div>';
-        }
-        echo '</section>';
-      }
-      
-      // If there's a search query but scope is not 'users', still search for users to show as suggestions
-      if ($searchQuery && !$showUserResults) {
-        $users = $uc->searchUsers($searchQuery, 10); // Limit to 10 for suggestions
-        
-        // Show user search results as a suggestion section if users are found
-        if (!empty($users)) {
-          echo '<section class="card user-suggestions-section" style="margin-bottom: 20px;">';
-          echo '<div class="section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
-          echo '<h3><i class="fa fa-users"></i> People matching "<strong>'.htmlspecialchars($searchQuery).'</strong>"</h3>';
-          echo '<a href="index.php?q='.urlencode($searchQuery).'&scope=users" class="btn secondary" style="font-size:12px;padding:6px 12px;">View All People</a>';
-          echo '</div>';
-          
-          echo '<div class="people-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">';
-          foreach ($users as $u) {
-            $uid = (int)$u['id'];
-            $avatar = null;
-            $glob = glob(__DIR__ . '/uploads/avatar_' . $uid . '.*');
-            if ($glob) $avatar = 'uploads/' . basename($glob[0]);
-            
-            echo '<div class="person-card card" style="padding:12px;transition:transform 0.2s ease,box-shadow 0.2s ease;" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.1)\';" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'\';">';
-            echo '<div style="display:flex;gap:10px;align-items:center;">';
-            echo '<div class="avatar" style="width:40px;height:40px;border-radius:50%;overflow:hidden;background:#e5e7eb;flex:0 0 auto;position:relative;">';
-            if ($avatar) {
-              echo '<img src="'.$avatar.'" style="width:100%;height:100%;object-fit:cover" alt="'.htmlspecialchars($u['name'] ?? '').'\'s avatar">';
-            } else {
-              echo '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:16px;"><i class="fa fa-user"></i></div>';
-            }
-            echo '</div>';
-            echo '<div style="flex:1;min-width:0;">';
-            echo '<div class="name" style="font-weight:600;font-size:14px;margin-bottom:2px;"><a href="profile.php?id='.$uid.'" style="text-decoration:none;color:#1f2937;">'.htmlspecialchars($u['name'] ?? '').'</a></div>';
-            echo '<div class="role" style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:500;">'.htmlspecialchars($u['role'] ?? 'Student').'</div>';
-            echo '</div>';
-            echo '<div class="person-actions" style="display:flex;gap:4px;">';
-            echo '<a href="profile.php?id='.$uid.'" class="btn secondary" style="font-size:11px;padding:4px 8px;text-decoration:none;"><i class="fa fa-user"></i></a>';
-            if (isset($_SESSION['user_id']) && $_SESSION['user_id'] != $uid) {
-              echo '<a href="chat.php" class="btn" style="font-size:11px;padding:4px 8px;text-decoration:none;"><i class="fa fa-comments"></i></a>';
-            }
-            echo '</div>';
-            echo '</div>';
-            echo '</div>';
-          }
-          echo '</div>';
-          
-          echo '<div class="results-count" style="margin-top:12px;text-align:center;color:#6b7280;font-size:12px;">';
-          echo 'Showing '.count($users).' people • <a href="index.php?q='.urlencode($searchQuery).'&scope=users">View all people results</a>';
-          echo '</div>';
           echo '</section>';
-        }
-      }
-
-      $filter = $_GET['filter'] ?? null;
-      $posts = $postController->getAllPosts($q, $filter);
-      echo '<section class="card"><h2>News Feed</h2>';
-      if (!$posts) {
-        if ($searchQuery && !empty($users)) {
-          echo '<div class="kv" style="text-align:center;padding:20px;color:#6b7280;">';
-          echo '<i class="fa fa-search" style="font-size:24px;margin-bottom:8px;opacity:0.5;"></i><br>';
-          echo 'No posts found for "<strong>'.htmlspecialchars($searchQuery).'</strong>", but we found people with that name above.';
-          echo '</div>';
-        } else if ($searchQuery) {
-          echo '<div class="kv" style="text-align:center;padding:20px;color:#6b7280;">';
-          echo '<i class="fa fa-search" style="font-size:24px;margin-bottom:8px;opacity:0.5;"></i><br>';
-          echo 'No posts or people found for "<strong>'.htmlspecialchars($searchQuery).'</strong>".';
-          echo '</div>';
-        } else {
-          echo '<div class="kv">No posts found.</div>';
-        }
-      } else {
-        foreach ($posts as $p) {
-          echo '<article class="post" style="padding:12px;border-top:1px solid #eee">';
-          echo '<div class="kv" style="color:#666">By '.htmlspecialchars($p['author'] ?? '').' &middot; '.htmlspecialchars($p['created_at'] ?? '').'</div>';
-          echo '<h3 style="margin:6px 0 4px 0">'.htmlspecialchars($p['title'] ?? '').'</h3>';
-          $rawContent = $p['content'] ?? '';
-          
-          // Use improved attachment parsing
-          $attachments = parseAttachments($rawContent);
-          
-          // Strip anchor tags that link to uploads and any [Attachment: ...] text markers
-          $displayContent = preg_replace('%<a[^>]+href=["\']?uploads/[^"\'>]+[^>]*>.*?</a>%is', '', $rawContent);
-          $displayContent = preg_replace('%\[Attachment:[^\]]*\]%i', '', $displayContent);
-          $displayContent = trim($displayContent);
-          
-          echo '<div>'.nl2br(htmlspecialchars($displayContent)).'</div>';
-          
-          // Display attachments using improved rendering
-          if (!empty($attachments)) {
-            foreach ($attachments as $attachmentPath) {
-              echo renderAttachment($attachmentPath);
-            }
-          }
-          
-          if (!empty($p['event'])) {
-            echo '<div class="kv" style="margin-top:6px">Event: '.htmlspecialchars($p['event']['title'] ?? '').' on '.htmlspecialchars($p['event']['event_date'] ?? '').'</div>';
-          }
-
-          // Reactions and comments UI
-          $pid = (int)($p['id'] ?? 0);
-          $rx = $reactionController->getReactions($pid);
-          $rxTotal = is_array($rx) ? count($rx) : 0;
-          $rxCounts = ['like'=>0,'haha'=>0,'heart'=>0,'sad'=>0,'angry'=>0];
-          if (is_array($rx)) { foreach ($rx as $r0) { if (!empty($r0['type']) && isset($rxCounts[$r0['type']])) { $rxCounts[$r0['type']]++; } } }
-
-          $comments = $commentController->getComments($pid);
-          $cTotal = is_array($comments) ? count($comments) : 0;
-
-          echo '<div class="post-actions" style="margin-top:8px;display:flex;gap:12px;align-items:center">';
-          echo '<button class="btn small reaction-trigger" data-post-id="'.$pid.'">Like</button>';
-          // emoji picker for this post
-          echo '<div class="emoji-picker" data-post-id="'.$pid.'" style="display:none">';
-          echo '<span class="emoji" data-type="like" title="Like">👍</span> ';
-          echo '<span class="emoji" data-type="heart" title="Love">❤️</span> ';
-          echo '<span class="emoji" data-type="haha" title="Haha">😂</span> ';
-          echo '<span class="emoji" data-type="sad" title="Sad">😢</span> ';
-          echo '<span class="emoji" data-type="angry" title="Angry">😡</span>';
-          echo '</div>';
-          // reaction total (click to view list)
-          echo '<div class="kv reaction-total" id="reactions-'.$pid.'" data-post-id="'.$pid.'" style="cursor:pointer">';
-          echo $rxTotal ? ($rxTotal.' reactions') : 'No reactions';
-          echo '</div>';
-          // comments count and quick button
-          echo '<div class="kv comments-count" data-post-id="'.$pid.'" data-count="'.$cTotal.'">'.$cTotal.' comments</div>';
-          echo '<button class="btn small secondary comment-btn" data-post-id="'.$pid.'">Comment</button>';
-          echo '</div>';
-
-          // comments list
-          echo '<div class="comments" style="margin-top:8px">';
-          if ($comments) {
-            foreach ($comments as $c) {
-              $author = htmlspecialchars($c['author'] ?? '');
-              $text = nl2br(htmlspecialchars($c['content'] ?? ''));
-              echo '<div class="comment" style="margin:6px 0"><strong>'.$author.':</strong> '.$text.'</div>';
-            }
-          }
-          echo '</div>';
-          // comment form (AJAX handled in assets/app.js)
-          echo '<form class="comment-form" data-post-id="'.$pid.'" style="margin-top:8px">';
-          echo '<textarea class="input" name="content" placeholder="Write a comment..." rows="2" required></textarea>';
-          echo '<div style="margin-top:6px"><button class="btn small" type="submit">Post Comment</button></div>';
-          echo '</form>';
-
-          echo '</article>';
-        }
-      }
-      echo '</section>';
-    ?>
-    </div>
-    </main>
-  </div>
+        ?>
+        </div>
     <?php require_once __DIR__ . '/../src/View/footer.php'; ?>
     
     <script>

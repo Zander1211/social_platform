@@ -16,57 +16,201 @@ if (session_status() === PHP_SESSION_NONE) {
   <?php
   // Cache-bust stylesheet by appending file modification time so changes appear immediately in browser
   $cssPath = __DIR__ . '/../../public/assets/style.css';
+  $modernCssPath = __DIR__ . '/../../public/assets/modern-theme.css';
   $cssVersion = file_exists($cssPath) ? filemtime($cssPath) : time();
+  $modernCssVersion = file_exists($modernCssPath) ? filemtime($modernCssPath) : time();
   ?>
   <link rel="stylesheet" href="assets/style.css?v=<?php echo $cssVersion; ?>">
+  <link rel="stylesheet" href="assets/modern-theme.css?v=<?php echo $modernCssVersion; ?>">
+  <link rel="stylesheet" href="assets/enhanced-content.css?v=<?php echo time(); ?>">
+  <link rel="stylesheet" href="assets/dashboard-enhancements.css?v=<?php echo time(); ?>">
+  <link rel="stylesheet" href="assets/pages-enhancements.css?v=<?php echo time(); ?>">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
 <body>
   <?php if (empty($suppressTopNav)): ?>
-  <header class="topbar">
-    <div class="container topbar-inner">
-      <div class="brand"><a href="index.php">School Platform</a></div>
-  <div class="search">
-        <form method="GET" action="index.php" style="display:flex;gap:8px;align-items:center">
-          <input class="input" name="q" placeholder="Search for classmates, posts or events" value="<?php echo htmlspecialchars($_GET['q'] ?? ''); ?>">
-          <input type="hidden" name="scope" value="<?php echo htmlspecialchars($_GET['scope'] ?? 'all'); ?>" id="search-scope">
-          <button class="btn" type="submit">Search</button>
-          <button class="btn secondary" type="submit" name="scope" value="users">People</button>
-        </form>
+  <!-- Modern Dashboard Layout -->
+  <div class="dashboard-layout">
+    <!-- Left Sidebar Navigation -->
+    <aside class="modern-sidebar">
+      <!-- Logo/Brand Section -->
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <i class="fas fa-graduation-cap"></i>
+          <span class="logo-text">School Platform</span>
+        </div>
       </div>
-      <nav class="topnav">
-        <a href="index.php">Home</a>
-        <?php if (isset($_SESSION['user_id'])): ?>
-          <a href="profile.php">Profile</a>
-        <?php endif; ?>
-        <?php if (!empty($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin'): ?>
-          <a href="admin.php">Admin</a>
-        <?php endif; ?>
-        <?php if (!isset($_SESSION['user_id'])): ?>
-          <a class="btn" href="login.php">Login</a>
-        <?php endif; ?>
-      </nav>
-    </div>
-    <!-- top horizontal menu moved from left sidebar -->
-    <div class="container" style="margin-top:8px">
-      <nav class="topmenu card" style="display:flex;gap:12px;padding:10px;align-items:center">
-        <?php if (!isset($_SESSION['user_id'])): ?>
-          <a href="register.php">Register</a>
-        <?php endif; ?>
-      </nav>
-    </div>
-  </header>
-  <?php endif; ?>
 
-  <div class="main-layout container">
-    <aside class="left-sidebar">
-      <?php 
-      // Left sidebar content is now context-specific. Templates can include the full dashboard if needed.
-      // require_once __DIR__ . '/news-feed-dashboard.php';
-      ?>
+      <!-- Navigation Menu -->
+      <nav class="sidebar-nav">
+        <!-- Filters Section -->
+        <div class="nav-section">
+          <div class="nav-section-title">
+            <i class="fas fa-filter"></i>
+            <span>Filters</span>
+          </div>
+          <div class="nav-items">
+            <?php 
+            $currentFilter = $_GET['filter'] ?? 'all';
+            $currentPage = basename($_SERVER['PHP_SELF'], '.php');
+            $isIndexPage = ($currentPage === 'index');
+            ?>
+            <a href="index.php" class="nav-item <?php echo $isIndexPage && $currentFilter === 'all' ? 'active' : ''; ?>">
+              <i class="fas fa-globe"></i>
+              <span class="nav-label">All Posts</span>
+            </a>
+            <a href="index.php?filter=day" class="nav-item <?php echo $currentFilter === 'day' ? 'active' : ''; ?>">
+              <i class="fas fa-calendar-day"></i>
+              <span class="nav-label">This Day</span>
+            </a>
+            <a href="index.php?filter=week" class="nav-item <?php echo $currentFilter === 'week' ? 'active' : ''; ?>">
+              <i class="fas fa-calendar-week"></i>
+              <span class="nav-label">This Week</span>
+            </a>
+            <a href="index.php?filter=month" class="nav-item <?php echo $currentFilter === 'month' ? 'active' : ''; ?>">
+              <i class="fas fa-calendar-alt"></i>
+              <span class="nav-label">This Month</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- Content Section -->
+        <div class="nav-section">
+          <div class="nav-section-title">
+            <i class="fas fa-star"></i>
+            <span>Content</span>
+          </div>
+          <div class="nav-items">
+            <a href="index.php?filter=popular" class="nav-item <?php echo $currentFilter === 'popular' ? 'active' : ''; ?>">
+              <i class="fas fa-fire"></i>
+              <span class="nav-label">Popular Posts</span>
+            </a>
+            <?php if (isset($_SESSION['user_id'])): ?>
+            <a href="index.php?filter=following" class="nav-item <?php echo $currentFilter === 'following' ? 'active' : ''; ?>">
+              <i class="fas fa-users"></i>
+              <span class="nav-label">Following</span>
+            </a>
+            <?php endif; ?>
+          </div>
+        </div>
+
+        <!-- Navigation Section -->
+        <div class="nav-section">
+          <div class="nav-section-title">
+            <i class="fas fa-compass"></i>
+            <span>Navigate</span>
+          </div>
+          <div class="nav-items">
+            <a href="index.php" class="nav-item <?php echo $currentPage === 'index' ? 'active' : ''; ?>">
+              <i class="fas fa-home"></i>
+              <span class="nav-label">Home</span>
+            </a>
+            <?php if (isset($_SESSION['user_id'])): ?>
+            <a href="profile.php" class="nav-item <?php echo $currentPage === 'profile' ? 'active' : ''; ?>">
+              <i class="fas fa-user"></i>
+              <span class="nav-label">Profile</span>
+            </a>
+            <a href="chat.php" class="nav-item <?php echo $currentPage === 'chat' ? 'active' : ''; ?>">
+              <i class="fas fa-comments"></i>
+              <span class="nav-label">Chat</span>
+            </a>
+            <?php endif; ?>
+            <?php if (!empty($_SESSION['role']) && strtolower($_SESSION['role']) === 'admin'): ?>
+            <a href="admin.php" class="nav-item <?php echo $currentPage === 'admin' ? 'active' : ''; ?>">
+              <i class="fas fa-cog"></i>
+              <span class="nav-label">Admin</span>
+            </a>
+            <?php endif; ?>
+          </div>
+        </div>
+      </nav>
+
+      <!-- User Section -->
+      <div class="sidebar-footer">
+        <?php if (isset($_SESSION['user_id'])): ?>
+        <div class="user-info">
+          <div class="user-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <div class="user-details">
+            <div class="user-name"><?php echo htmlspecialchars($_SESSION['name'] ?? 'User'); ?></div>
+            <div class="user-role"><?php echo htmlspecialchars($_SESSION['role'] ?? 'Student'); ?></div>
+          </div>
+        </div>
+        <a href="logout.php" class="nav-item logout-btn">
+          <i class="fas fa-sign-out-alt"></i>
+          <span class="nav-label">Logout</span>
+        </a>
+        <?php else: ?>
+        <div class="auth-buttons">
+          <a href="login.php" class="nav-item">
+            <i class="fas fa-sign-in-alt"></i>
+            <span class="nav-label">Login</span>
+          </a>
+          <a href="register.php" class="nav-item">
+            <i class="fas fa-user-plus"></i>
+            <span class="nav-label">Register</span>
+          </a>
+        </div>
+        <?php endif; ?>
+      </div>
     </aside>
 
-    <div class="header-topmenu">
-      <?php // Include the compact news feed navigation in the header for site-wide access ?>
-      <?php require_once __DIR__ . '/news-feed-topmenu.php'; ?>
-    </div>
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Top Header Bar -->
+      <header class="content-header">
+        <div class="header-left">
+          <button class="mobile-menu-toggle" onclick="toggleSidebar()">
+            <i class="fas fa-bars"></i>
+          </button>
+          <h1 class="page-title">
+            <?php 
+            if ($currentPage === 'index') {
+              switch($currentFilter) {
+                case 'day': echo 'Today\'s Posts'; break;
+                case 'week': echo 'This Week\'s Posts'; break;
+                case 'month': echo 'This Month\'s Posts'; break;
+                case 'popular': echo 'Popular Posts'; break;
+                case 'following': echo 'Following'; break;
+                default: echo 'All Posts'; break;
+              }
+            } else {
+              echo ucfirst($currentPage);
+            }
+            ?>
+          </h1>
+        </div>
+        <div class="header-right">
+          <div class="search-container">
+            <form method="GET" action="index.php" class="search-form">
+              <div class="search-input-group">
+                <i class="fas fa-search search-icon"></i>
+                <input class="search-input" name="q" placeholder="Search posts, people, events..." value="<?php echo htmlspecialchars($_GET['q'] ?? ''); ?>">
+                <input type="hidden" name="scope" value="<?php echo htmlspecialchars($_GET['scope'] ?? 'all'); ?>" id="search-scope">
+              </div>
+              <button class="search-btn" type="submit">
+                <i class="fas fa-search"></i>
+              </button>
+              <button class="people-btn" type="submit" name="scope" value="users">
+                <i class="fas fa-users"></i>
+                <span>People</span>
+              </button>
+            </form>
+          </div>
+          <?php if (!empty($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
+          <button class="create-post-btn" onclick="openPostComposer()">
+            <i class="fas fa-plus"></i>
+            <span>Create Post</span>
+          </button>
+          <?php endif; ?>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="content-body">
+  <?php else: ?>
+  <!-- Simple layout when navigation is suppressed -->
+  <div class="simple-layout">
+    <main class="simple-content">
+  <?php endif; ?>
