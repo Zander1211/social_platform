@@ -15,97 +15,6 @@ session_start();
 
 // $pdo is created in config/database.php
 
-// Improved attachment parsing function
-function parseAttachments($content) {
-    $attachments = [];
-    
-    // Pattern 1: Look for href="uploads/filename" in anchor tags
-    if (preg_match_all('/href=["\']uploads\/([^"\'\/><]+\.[^"\'\/><]+)["\']/i', $content, $matches)) {
-        foreach ($matches[1] as $filename) {
-            $attachments[] = 'uploads/' . $filename;
-        }
-    }
-    
-    // Pattern 2: Look for direct uploads/filename references
-    if (preg_match_all('/uploads\/([^\s"\'\/><]+\.[^\s"\'\/><]+)/i', $content, $matches)) {
-        $attachments = array_merge($attachments, $matches[0]);
-    }
-    
-    // Remove duplicates and return
-    return array_unique($attachments);
-}
-
-// Function to render attachments properly
-function renderAttachment($attachmentPath) {
-    $ext = strtolower(pathinfo($attachmentPath, PATHINFO_EXTENSION));
-    $filename = basename($attachmentPath);
-    
-    // Check if file actually exists
-    $fullPath = __DIR__ . '/' . $attachmentPath;
-    if (!file_exists($fullPath)) {
-        // Try to create a placeholder or provide a better error message
-        $uploadsDir = __DIR__ . '/uploads';
-        if (!is_dir($uploadsDir)) {
-            mkdir($uploadsDir, 0755, true);
-        }
-        
-        // Create a placeholder file if it's an image
-        if (in_array($ext, ['png', 'jpg', 'jpeg', 'gif', 'webp'])) {
-            // Create a simple placeholder image (1x1 transparent PNG)
-            $placeholderImage = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
-            file_put_contents($fullPath, $placeholderImage);
-        }
-        
-        // If still doesn't exist, show a user-friendly message with option to remove
-        if (!file_exists($fullPath)) {
-            return '<div style="padding:12px;background:#fef3cd;border:1px solid #fbbf24;border-radius:8px;color:#92400e;margin:8px 0;display:flex;align-items:center;justify-content:space-between;">
-                        <div>
-                            <i class="fa fa-exclamation-triangle" style="margin-right:8px;"></i>
-                            <strong>Missing Attachment:</strong> ' . htmlspecialchars($filename) . '
-                            <br><small>This file may have been moved or deleted.</small>
-                        </div>
-                        <button onclick="removeAttachmentReference(this)" class="btn secondary" style="font-size:11px;padding:4px 8px;margin-left:12px;">
-                            <i class="fa fa-times"></i> Remove
-                        </button>
-                    </div>';
-        }
-    }
-    
-    $output = '<div style="margin:8px 0">';
-    
-    if (in_array($ext, ['png','jpg','jpeg','gif','webp'])) {
-        // Image
-        $output .= '<img src="'.htmlspecialchars($attachmentPath).'" alt="'.htmlspecialchars($filename).'" 
-                   style="max-width:100%;height:auto;border:1px solid #eee;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);cursor:pointer;" 
-                   onclick="window.open(this.src, \'_blank\')" 
-                   title="Click to view full size">';
-    } elseif (in_array($ext, ['mp4','webm','ogg','ogv'])) {
-        // Video
-        $type = ($ext === 'ogv') ? 'ogg' : $ext;
-        $output .= '<video controls style="max-width:100%;border:1px solid #eee;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1)">
-                <source src="'.htmlspecialchars($attachmentPath).'" type="video/'.$type.'">
-                Your browser does not support the video tag.
-              </video>';
-    } elseif (in_array($ext, ['mp3','wav','ogg'])) {
-        // Audio
-        $output .= '<audio controls style="width:100%;border-radius:4px">
-                <source src="'.htmlspecialchars($attachmentPath).'">
-                Your browser does not support the audio tag.
-              </audio>';
-    } else {
-        // Other files
-        $output .= '<div style="padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;align-items:center;gap:8px">
-                <i class="fa fa-file" style="color:#6b7280"></i>
-                <span style="flex:1;color:#374151">'.htmlspecialchars($filename).'</span>
-                <a class="btn secondary" href="'.htmlspecialchars($attachmentPath).'" target="_blank" rel="noopener" 
-                   style="font-size:12px;padding:4px 8px">Download</a>
-              </div>';
-    }
-    
-    $output .= '</div>';
-    return $output;
-}
-
 // quick action endpoints (form posts from the home page)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action']) && $_POST['action'] === 'create_post') {
@@ -118,39 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $up = $_FILES['attachment'];
             $targetDir = __DIR__ . '/uploads';
             if (!is_dir($targetDir)) mkdir($targetDir, 0755, true);
-            
-            // Validate file type and size
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm', 'audio/mp3', 'audio/wav', 'application/pdf'];
-            $maxSize = 10 * 1024 * 1024; // 10MB
-            
-            if (!in_array($up['type'], $allowedTypes)) {
-                $_SESSION['error'] = 'Invalid file type. Please upload images, videos, audio, or PDF files only.';
-                header('Location: index.php'); exit();
-            }
-            
-            if ($up['size'] > $maxSize) {
-                $_SESSION['error'] = 'File size too large. Maximum size is 10MB.';
-                header('Location: index.php'); exit();
-            }
-            
             $ext = pathinfo($up['name'], PATHINFO_EXTENSION);
             $safe = uniqid('att_') . '.' . $ext;
             $dest = $targetDir . '/' . $safe;
-            
             if (move_uploaded_file($up['tmp_name'], $dest)) {
-                // Set proper file permissions
-                chmod($dest, 0644);
-                
-                // Verify the file was actually created and is readable
-                if (file_exists($dest) && is_readable($dest)) {
-                    // append link to content
-                    $content .= "\n\n[Attachment: <a href=\"uploads/{$safe}\">{$up['name']}</a>]";
-                    $_SESSION['success'] = 'Post created with attachment successfully!';
-                } else {
-                    $_SESSION['error'] = 'File upload completed but file verification failed.';
-                }
-            } else {
-                $_SESSION['error'] = 'Failed to upload attachment. Please check file permissions and try again.';
+                // append link to content
+                $content .= "\n\n[Attachment: <a href=\"uploads/{$safe}\">{$up['name']}</a>]";
             }
         }
         $pc = new PostController($pdo);
@@ -250,19 +132,6 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     ?>
     <?php require_once __DIR__ . '/../src/View/header.php'; ?>
     
-    <!-- Display success/error messages -->
-    <?php if (isset($_SESSION['success'])): ?>
-        <div style="background:#d4edda;color:#155724;padding:12px;margin:16px;border:1px solid #c3e6cb;border-radius:8px;">
-            <?php echo htmlspecialchars($_SESSION['success']); unset($_SESSION['success']); ?>
-        </div>
-    <?php endif; ?>
-    
-    <?php if (isset($_SESSION['error'])): ?>
-        <div style="background:#f8d7da;color:#721c24;padding:12px;margin:16px;border:1px solid #f5c6cb;border-radius:8px;">
-            <?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?>
-        </div>
-    <?php endif; ?>
-    
     <!-- Post Composer Modal (for admins) -->
     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
     <div id="postComposerModal" class="post-composer-modal" style="display: none;">
@@ -302,19 +171,16 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     </div>
     <?php endif; ?>
     
-    <div class="container">
+    <main class="container">
     <?php 
       $scope = $_GET['scope'] ?? 'all';
       $uc = new UserController($pdo);
       $showUserResults = ($scope === 'users');
       
-      // Enhanced search logic: if there's a search query, also search for users
-      $searchQuery = $q && trim($q) !== '' ? $q : '';
-      $users = [];
-      
       // If scope is 'users', show people search results
       if ($showUserResults) {
         // If there's a search query, use it; otherwise show all users
+        $searchQuery = $q && trim($q) !== '' ? $q : '';
         $users = $searchQuery ? $uc->searchUsers($searchQuery, 50) : $uc->getAllUsers(50);
         
         echo '<section class="card people-section">';
@@ -379,74 +245,12 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
         }
         echo '</section>';
       }
-      
-      // If there's a search query but scope is not 'users', still search for users to show as suggestions
-      if ($searchQuery && !$showUserResults) {
-        $users = $uc->searchUsers($searchQuery, 10); // Limit to 10 for suggestions
-        
-        // Show user search results as a suggestion section if users are found
-        if (!empty($users)) {
-          echo '<section class="card user-suggestions-section" style="margin-bottom: 20px;">';
-          echo '<div class="section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">';
-          echo '<h3><i class="fa fa-users"></i> People matching "<strong>'.htmlspecialchars($searchQuery).'</strong>"</h3>';
-          echo '<a href="index.php?q='.urlencode($searchQuery).'&scope=users" class="btn secondary" style="font-size:12px;padding:6px 12px;">View All People</a>';
-          echo '</div>';
-          
-          echo '<div class="people-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">';
-          foreach ($users as $u) {
-            $uid = (int)$u['id'];
-            $avatar = null;
-            $glob = glob(__DIR__ . '/uploads/avatar_' . $uid . '.*');
-            if ($glob) $avatar = 'uploads/' . basename($glob[0]);
-            
-            echo '<div class="person-card card" style="padding:12px;transition:transform 0.2s ease,box-shadow 0.2s ease;" onmouseover="this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.1)\';" onmouseout="this.style.transform=\'translateY(0)\';this.style.boxShadow=\'\';">';
-            echo '<div style="display:flex;gap:10px;align-items:center;">';
-            echo '<div class="avatar" style="width:40px;height:40px;border-radius:50%;overflow:hidden;background:#e5e7eb;flex:0 0 auto;position:relative;">';
-            if ($avatar) {
-              echo '<img src="'.$avatar.'" style="width:100%;height:100%;object-fit:cover" alt="'.htmlspecialchars($u['name'] ?? '').'\'s avatar">';
-            } else {
-              echo '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:16px;"><i class="fa fa-user"></i></div>';
-            }
-            echo '</div>';
-            echo '<div style="flex:1;min-width:0;">';
-            echo '<div class="name" style="font-weight:600;font-size:14px;margin-bottom:2px;"><a href="profile.php?id='.$uid.'" style="text-decoration:none;color:#1f2937;">'.htmlspecialchars($u['name'] ?? '').'</a></div>';
-            echo '<div class="role" style="font-size:11px;color:#6b7280;text-transform:uppercase;font-weight:500;">'.htmlspecialchars($u['role'] ?? 'Student').'</div>';
-            echo '</div>';
-            echo '<div class="person-actions" style="display:flex;gap:4px;">';
-            echo '<a href="profile.php?id='.$uid.'" class="btn secondary" style="font-size:11px;padding:4px 8px;text-decoration:none;"><i class="fa fa-user"></i></a>';
-            if (isset($_SESSION['user_id']) && $_SESSION['user_id'] != $uid) {
-              echo '<a href="chat.php" class="btn" style="font-size:11px;padding:4px 8px;text-decoration:none;"><i class="fa fa-comments"></i></a>';
-            }
-            echo '</div>';
-            echo '</div>';
-            echo '</div>';
-          }
-          echo '</div>';
-          
-          echo '<div class="results-count" style="margin-top:12px;text-align:center;color:#6b7280;font-size:12px;">';
-          echo 'Showing '.count($users).' people • <a href="index.php?q='.urlencode($searchQuery).'&scope=users">View all people results</a>';
-          echo '</div>';
-          echo '</section>';
-        }
-      }
 
       $filter = $_GET['filter'] ?? null;
       $posts = $postController->getAllPosts($q, $filter);
       echo '<section class="card"><h2>News Feed</h2>';
       if (!$posts) {
-        if ($searchQuery && !empty($users)) {
-          echo '<div class="kv" style="text-align:center;padding:20px;color:#6b7280;">';
-          echo '<i class="fa fa-search" style="font-size:24px;margin-bottom:8px;opacity:0.5;"></i><br>';
-          echo 'No posts found for "<strong>'.htmlspecialchars($searchQuery).'</strong>", but we found people with that name above.';
-          echo '</div>';
-        } else if ($searchQuery) {
-          echo '<div class="kv" style="text-align:center;padding:20px;color:#6b7280;">';
-          echo '<i class="fa fa-search" style="font-size:24px;margin-bottom:8px;opacity:0.5;"></i><br>';
-          echo 'No posts or people found for "<strong>'.htmlspecialchars($searchQuery).'</strong>".';
-          echo '</div>';
-        } else {
-          echo '<div class="kv">No posts found.</div>';
-        }
+        echo '<div class="kv">No posts found.</div>';
       } else {
         foreach ($posts as $p) {
           echo '<article class="post" style="padding:12px;border-top:1px solid #eee">';
@@ -454,23 +258,46 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
           echo '<h3 style="margin:6px 0 4px 0">'.htmlspecialchars($p['title'] ?? '').'</h3>';
           $rawContent = $p['content'] ?? '';
           
-          // Use improved attachment parsing
-          $attachments = parseAttachments($rawContent);
+          // Find attachments and remove any raw attachment anchors from the body so links don't show up visually
+          $attachments = [];
+          if (preg_match_all('%uploads/([^\s\"\'\/]+\.[^\s\"\'\/]+)%i', $rawContent, $m)) {
+              $attachments = $m[0]; // Full paths including 'uploads/'
+          }
           
           // Strip anchor tags that link to uploads and any [Attachment: ...] text markers
-          $displayContent = preg_replace('%<a[^>]+href=["\']?uploads/[^"\'>]+[^>]*>.*?</a>%is', '', $rawContent);
+          $displayContent = preg_replace('%<a[^>]+href=[\"\']?uploads/[^\"\'>]+[^>]*>.*?</a>%is', '', $rawContent);
           $displayContent = preg_replace('%\[Attachment:[^\]]*\]%i', '', $displayContent);
           $displayContent = trim($displayContent);
           
           echo '<div>'.nl2br(htmlspecialchars($displayContent)).'</div>';
           
-          // Display attachments using improved rendering
+          // Display attachments properly
           if (!empty($attachments)) {
             foreach ($attachments as $attachmentPath) {
-              echo renderAttachment($attachmentPath);
+              $ext = strtolower(pathinfo($attachmentPath, PATHINFO_EXTENSION));
+              echo '<div style="margin:8px 0">';
+              if (in_array($ext, ['png','jpg','jpeg','gif','webp'])) {
+                echo '<img src="'.htmlspecialchars($attachmentPath).'" alt="attachment" style="max-width:100%;height:auto;border:1px solid #eee;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1)">';
+              } elseif (in_array($ext, ['mp4','webm','ogg','ogv'])) {
+                $type = ($ext === 'ogv') ? 'ogg' : $ext;
+                echo '<video controls style="max-width:100%;border:1px solid #eee;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1)">'
+                   . '<source src="'.htmlspecialchars($attachmentPath).'" type="video/'.$type.'">'
+                   . 'Your browser does not support the video tag.' . '</video>';
+              } elseif (in_array($ext, ['mp3','wav','ogg'])) {
+                echo '<audio controls style="width:100%;border-radius:4px">'
+                   . '<source src="'.htmlspecialchars($attachmentPath).'">'
+                   . 'Your browser does not support the audio tag.' . '</audio>';
+              } else {
+                $filename = basename($attachmentPath);
+                echo '<div style="padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;display:flex;align-items:center;gap:8px">';
+                echo '<i class="fa fa-file" style="color:#6b7280"></i>';
+                echo '<span style="flex:1;color:#374151">'.htmlspecialchars($filename).'</span>';
+                echo '<a class="btn secondary" href="'.htmlspecialchars($attachmentPath).'" target="_blank" rel="noopener" style="font-size:12px;padding:4px 8px">Download</a>';
+                echo '</div>';
+              }
+              echo '</div>';
             }
           }
-          
           if (!empty($p['event'])) {
             echo '<div class="kv" style="margin-top:6px">Event: '.htmlspecialchars($p['event']['title'] ?? '').' on '.htmlspecialchars($p['event']['event_date'] ?? '').'</div>';
           }
@@ -525,29 +352,10 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
       }
       echo '</section>';
     ?>
-    </div>
     </main>
-  </div>
     <?php require_once __DIR__ . '/../src/View/footer.php'; ?>
     
     <script>
-    // Function to remove attachment reference
-    function removeAttachmentReference(button) {
-        if (confirm('Remove this missing attachment reference from the post?')) {
-            const attachmentDiv = button.closest('div');
-            if (attachmentDiv) {
-                attachmentDiv.style.opacity = '0.5';
-                attachmentDiv.innerHTML = '<div style="padding:8px;color:#6b7280;font-style:italic;"><i class="fa fa-check"></i> Attachment reference removed</div>';
-                
-                // You could add AJAX call here to update the post in the database
-                // For now, it just hides the error message
-                setTimeout(() => {
-                    attachmentDiv.style.display = 'none';
-                }, 2000);
-            }
-        }
-    }
-    
     // Enhanced People Button Functionality
     document.addEventListener('DOMContentLoaded', function() {
         const peopleBtn = document.querySelector('.people-btn');
@@ -624,196 +432,6 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
         
         window.location.href = currentUrl.toString();
     }
-    
-    // Enhanced Filter Functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const filterButtons = document.querySelectorAll('.sidebar-filter-btn');
-        
-        // Add loading state when filter is clicked
-        filterButtons.forEach(button => {
-            button.addEventListener('click', function(e) {
-                // Add loading state
-                const originalContent = this.innerHTML;
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Loading...</span>';
-                this.style.pointerEvents = 'none';
-                
-                // Re-enable after navigation (this won't actually run due to page redirect)
-                setTimeout(() => {
-                    this.innerHTML = originalContent;
-                    this.style.pointerEvents = 'auto';
-                }, 1000);
-            });
-        });
-        
-        // Add keyboard shortcuts for filters
-        document.addEventListener('keydown', function(e) {
-            // Only if not typing in an input field
-            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-                return;
-            }
-            
-            if (e.altKey) {
-                switch(e.key) {
-                    case '1':
-                        e.preventDefault();
-                        const allBtn = document.querySelector('.sidebar-filter-btn:not([href*="filter"])');
-                        if (allBtn) allBtn.click();
-                        break;
-                    case '2':
-                        e.preventDefault();
-                        const weekBtn = document.querySelector('.sidebar-filter-btn[href*="filter=week"]');
-                        if (weekBtn) weekBtn.click();
-                        break;
-                    case '3':
-                        e.preventDefault();
-                        const monthBtn = document.querySelector('.sidebar-filter-btn[href*="filter=month"]');
-                        if (monthBtn) monthBtn.click();
-                        break;
-                }
-            }
-        });
-        
-        // Add filter animation on page load
-        const filterSection = document.querySelector('.floating-filters');
-        if (filterSection) {
-            filterSection.style.opacity = '0';
-            filterSection.style.transform = 'translateX(-20px)';
-            
-            setTimeout(() => {
-                filterSection.style.transition = 'all 0.8s ease';
-                filterSection.style.opacity = '1';
-                filterSection.style.transform = 'translateX(0)';
-            }, 200);
-        }
-        
-        // Add floating effect on scroll
-        let lastScrollTop = 0;
-        const dashboard = document.querySelector('.news-feed-dashboard');
-        
-        window.addEventListener('scroll', function() {
-            if (!dashboard) return;
-            
-            const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-            
-            if (scrollTop > lastScrollTop && scrollTop > 100) {
-                // Scrolling down
-                dashboard.style.transform = 'translateY(-2px) scale(0.98)';
-                dashboard.style.opacity = '0.95';
-            } else {
-                // Scrolling up or at top
-                dashboard.style.transform = 'translateY(0) scale(1)';
-                dashboard.style.opacity = '1';
-            }
-            
-            lastScrollTop = scrollTop;
-        });
-        
-        // Enhanced hover effects for sidebar buttons
-        filterButtons.forEach((button, index) => {
-            button.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateX(6px) scale(1.02)';
-            });
-            
-            button.addEventListener('mouseleave', function() {
-                if (this.classList.contains('active')) {
-                    this.style.transform = 'translateX(2px) scale(1)';
-                } else {
-                    this.style.transform = 'translateX(0) scale(1)';
-                }
-            });
-        });
-    });
-    
-    // Modern Sidebar Toggle Functionality
-    function toggleSidebar() {
-        const sidebar = document.querySelector('.modern-sidebar');
-        const layout = document.querySelector('.dashboard-layout');
-        const toggle = document.querySelector('.mobile-menu-toggle');
-        
-        if (sidebar && layout && toggle) {
-            sidebar.classList.toggle('open');
-            layout.classList.toggle('sidebar-open');
-            
-            // Update toggle icon
-            const icon = toggle.querySelector('i');
-            if (sidebar.classList.contains('open')) {
-                icon.className = 'fas fa-times';
-            } else {
-                icon.className = 'fas fa-bars';
-            }
-        }
-    }
-    
-    // Close sidebar when clicking overlay
-    document.addEventListener('click', function(e) {
-        const sidebar = document.querySelector('.modern-sidebar');
-        const layout = document.querySelector('.dashboard-layout');
-        const toggle = document.querySelector('.mobile-menu-toggle');
-        
-        if (layout && layout.classList.contains('sidebar-open')) {
-            if (!sidebar.contains(e.target) && !toggle.contains(e.target)) {
-                toggleSidebar();
-            }
-        }
-    });
-    
-    // Enhanced sidebar animations
-    document.addEventListener('DOMContentLoaded', function() {
-        // Add staggered animation to nav items
-        const navItems = document.querySelectorAll('.nav-item');
-        navItems.forEach((item, index) => {
-            item.style.animationDelay = `${(index + 1) * 0.1}s`;
-        });
-        
-        // Add smooth scroll behavior for nav links
-        const navLinks = document.querySelectorAll('.nav-link');
-        navLinks.forEach(link => {
-            link.addEventListener('click', function(e) {
-                // Add loading state
-                const icon = this.querySelector('i');
-                const originalClass = icon.className;
-                icon.className = 'fas fa-spinner fa-spin';
-                
-                // Restore icon after delay
-                setTimeout(() => {
-                    icon.className = originalClass;
-                }, 1000);
-            });
-        });
-        
-        // Add keyboard navigation
-        document.addEventListener('keydown', function(e) {
-            // Toggle sidebar with Escape key
-            if (e.key === 'Escape') {
-                const sidebar = document.querySelector('.modern-sidebar');
-                if (sidebar && sidebar.classList.contains('open')) {
-                    toggleSidebar();
-                }
-            }
-            
-            // Quick navigation shortcuts
-            if (e.altKey) {
-                switch(e.key) {
-                    case '1':
-                        e.preventDefault();
-                        window.location.href = 'index.php';
-                        break;
-                    case '2':
-                        e.preventDefault();
-                        window.location.href = 'index.php?filter=day';
-                        break;
-                    case '3':
-                        e.preventDefault();
-                        window.location.href = 'index.php?filter=week';
-                        break;
-                    case '4':
-                        e.preventDefault();
-                        window.location.href = 'index.php?filter=month';
-                        break;
-                }
-            }
-        });
-    });
     </script>
     
     <!-- Post Composer Modal Styles and Scripts -->

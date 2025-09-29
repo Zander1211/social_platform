@@ -14,10 +14,10 @@ class ReactionController
         if (!in_array($reactionType, ['like', 'haha', 'heart', 'sad', 'angry'])) {
             throw new InvalidArgumentException('Invalid reaction type');
         }
-    // ensure single reaction per user per post: remove previous then insert
-    $this->removeReaction($userId, $postId);
-    $stmt = $this->pdo->prepare('INSERT INTO reactions (user_id, post_id, type, created_at) VALUES (:user_id, :post_id, :type, NOW())');
-    return $stmt->execute([':user_id' => $userId, ':post_id' => $postId, ':type' => $reactionType]);
+        // ensure single reaction per user per post: remove previous then insert
+        $this->removeReaction($userId, $postId);
+        $stmt = $this->pdo->prepare('INSERT INTO reactions (user_id, post_id, type, created_at) VALUES (:user_id, :post_id, :type, NOW())');
+        return $stmt->execute([':user_id' => $userId, ':post_id' => $postId, ':type' => $reactionType]);
     }
 
     public function removeReaction($userId, $postId)
@@ -43,5 +43,16 @@ class ReactionController
             $out[] = ['type' => $r['type'], 'name' => $r['name'], 'id' => $r['user_id'], 'avatar' => $avatar];
         }
         return $out;
+    }
+
+    public function reactToComment($commentId, $userId, $reaction)
+    {
+        if (!in_array($reaction, ['like', 'haha', 'heart', 'sad', 'angry'])) {
+            throw new InvalidArgumentException('Invalid reaction type');
+        }
+        // ensure single reaction per user per comment: remove previous then insert
+        $this->removeReaction($userId, $commentId);
+        $stmt = $this->pdo->prepare('INSERT INTO reactions (user_id, comment_id, reaction, created_at) VALUES (:user_id, :comment_id, :reaction, NOW())');
+        return $stmt->execute([':user_id' => $userId, ':comment_id' => $commentId, ':reaction' => $reaction]);
     }
 }

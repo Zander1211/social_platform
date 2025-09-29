@@ -43,6 +43,13 @@ class CommentController
         return $ok ? ['status' => 'success'] : ['status' => 'error'];
     }
 
+    public function replyToComment($postId, $userId, $content, $parentId)
+    {
+        $stmt = $this->pdo->prepare('INSERT INTO comments (post_id, user_id, content, parent_id, created_at) VALUES (:post_id, :user_id, :content, :parent_id, NOW())');
+        $ok = $stmt->execute([':post_id' => $postId, ':user_id' => $userId, ':content' => $content, ':parent_id' => $parentId]);
+        return $ok ? ['status' => 'success'] : ['status' => 'error'];
+    }
+
     public function getComments($postId)
     {
         $stmt = $this->pdo->prepare('SELECT c.*, u.name as author FROM comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.post_id = :post_id ORDER BY c.created_at ASC');

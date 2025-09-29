@@ -1,0 +1,2 @@
+This is a test file to simulate an uploaded attachment.
+You can replace this with an actual image file to test the attachment display functionality.

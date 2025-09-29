@@ -8,7 +8,8 @@ require_once __DIR__ . '/../../src/Controller/ReactionController.php';
 $postController = new PostController($pdo);
 $commentController = new CommentController($pdo);
 $reactionController = new ReactionController($pdo);
-$posts = $postController->getAllPosts();
+$filter = $_GET['filter'] ?? null;
+$posts = $postController->getAllPosts($q ?? null, $filter);
 ?>
 	<section class="card feed-center">
 		<h2>Welcome</h2>
@@ -22,6 +23,23 @@ $posts = $postController->getAllPosts();
 		</div>
 
 		<div style="margin-top:18px">
+			<?php if (!empty($usersSearchResults)): ?>
+				<div class="card" style="margin-bottom:12px">
+					<h3>People matching "<?php echo htmlspecialchars($q); ?>"</h3>
+					<ul style="list-style:none;padding:0">
+						<?php foreach ($usersSearchResults as $u): ?>
+							<li style="padding:8px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px">
+								<div style="width:48px;height:48px;border-radius:50%;background:#f3f4f6"></div>
+								<div style="flex:1">
+									<a href="profile.php?id=<?php echo $u['id']; ?>" style="font-weight:600;color:var(--primary)"><?php echo htmlspecialchars($u['name']); ?></a>
+									<div class="kv"><?php echo htmlspecialchars($u['email']); ?></div>
+								</div>
+								<div><a class="btn small" href="profile.php?id=<?php echo $u['id']; ?>">View</a></div>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+				</div>
+			<?php endif; ?>
 			<?php foreach ($posts as $post): ?>
 				<div class="post card">
 					<h3><?php echo htmlspecialchars($post['title']); ?></h3>
@@ -114,12 +132,14 @@ $posts = $postController->getAllPosts();
 			</form>
 		<?php endif; ?>
 
+		<?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
 		<h4>Recent Posts</h4>
 		<ul class="groups-list">
 			<?php foreach ($posts as $p): ?>
 				<li><strong><?php echo htmlspecialchars($p['title']); ?></strong><div class="kv"><?php echo htmlspecialchars($p['created_at']); ?></div></li>
 			<?php endforeach; ?>
 		</ul>
+		<?php endif; ?>
 	</aside>
 </div>
 <?php require_once __DIR__ . '/footer.php'; ?>

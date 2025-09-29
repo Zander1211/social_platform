@@ -108,6 +108,6 @@ $onlineUsers = $chatController->getActiveUsers();
             <?php endif; ?>
         </aside>
         <?php require_once __DIR__ . '/../src/View/footer.php'; ?>
-    <script src="assets/js/chat.js"></script>
+    <script src="assets/chat.js"></script>
 </body>
 </html>

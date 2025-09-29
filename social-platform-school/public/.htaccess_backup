@@ -1,0 +1,11 @@
+# Minimal .htaccess - Most compatible version
+
+RewriteEngine On
+
+# Allow direct access to files that exist
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Prevent directory listing
+Options -Indexes

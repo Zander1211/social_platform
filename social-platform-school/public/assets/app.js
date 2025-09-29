@@ -152,3 +152,81 @@ document.addEventListener('click', function(e){
     xhr.send();
   }
 });
+
+
+// Avatar change confirmation functionality
+(function(){
+  function hideModal() {
+    var modal = document.getElementById('avatarConfirmModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    var previewImage = document.getElementById('previewImage');
+    var previewPlaceholder = document.getElementById('previewPlaceholder');
+    if (previewImage) {
+      previewImage.style.display = 'none';
+      previewImage.src = '';
+    }
+    if (previewPlaceholder) {
+      previewPlaceholder.style.display = 'flex';
+      previewPlaceholder.textContent = 'Preview';
+    }
+  }
+
+  // expose functions for inline onclick handlers in the markup
+  window.confirmAvatarChange = function() {
+    var submitBtn = document.getElementById('avatarSubmit');
+    if (submitBtn) submitBtn.click();
+    hideModal();
+  };
+  window.cancelAvatarChange = function() {
+    var avatarInput = document.getElementById('avatarInput');
+    if (avatarInput) avatarInput.value = '';
+    hideModal();
+  };
+  window.hideModal = hideModal;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var avatarInput = document.getElementById('avatarInput');
+    var modal = document.getElementById('avatarConfirmModal');
+    var previewImage = document.getElementById('previewImage');
+    var previewPlaceholder = document.getElementById('previewPlaceholder');
+
+    if (!avatarInput) return;
+
+    avatarInput.addEventListener('change', function() {
+      if (!this.files || !this.files[0]) return;
+      var file = this.files[0];
+
+      if (file.type && file.type.indexOf('image/') === 0) {
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          if (previewImage) {
+            previewImage.src = ev.target.result;
+            previewImage.style.display = 'block';
+          }
+          if (previewPlaceholder) previewPlaceholder.style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      } else {
+        if (previewImage) {
+          previewImage.style.display = 'none';
+          previewImage.src = '';
+        }
+        if (previewPlaceholder) {
+          previewPlaceholder.style.display = 'flex';
+          previewPlaceholder.textContent = 'Not an image';
+        }
+      }
+
+      if (modal) modal.style.display = 'flex';
+    });
+  });
+
+  // click outside to close
+  document.addEventListener('click', function(e) {
+    var modal = document.getElementById('avatarConfirmModal');
+    if (modal && modal.style.display === 'flex' && e.target === modal) {
+      window.cancelAvatarChange();
+    }
+  });
+})();
