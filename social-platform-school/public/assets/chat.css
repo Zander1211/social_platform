@@ -427,8 +427,15 @@
   font-family: inherit;
   font-size: 0.95rem;
   transition: all var(--transition-fast);
-  background: var(--bg-primary);
+  background: var(--bg-tertiary);
   line-height: 1.4;
+  overflow: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.message-input::-webkit-scrollbar {
+  display: none;
 }
 
 .message-input:focus {

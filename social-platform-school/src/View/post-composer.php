@@ -13,7 +13,7 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['role']) || strtolower($_SE
             <h3><i class="fas fa-plus-circle"></i> Create New Post</h3>
             <button class="modal-close" onclick="closeGlobalPostComposer()">&times;</button>
         </div>
-        <form method="POST" action="index.php" enctype="multipart/form-data" class="post-composer-form" id="globalPostForm">
+        <form method="POST" action="create_post.php" enctype="multipart/form-data" class="post-composer-form" id="globalPostForm">
             <input type="hidden" name="action" value="create_post">
             
             <div class="form-group">

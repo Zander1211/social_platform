@@ -494,35 +494,61 @@ a:hover {
 }
 
 .search-input-group {
-  position: relative;
   display: flex;
   align-items: center;
+  background: var(--bg-primary);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 0 var(--space-md);
+  transition: all var(--transition-fast);
+  flex: 1;
+  max-width: 500px;
 }
 
 .search-input {
-  width: 320px;
-  padding: var(--space-md) var(--space-md) var(--space-md) 2.5rem;
-  border: 2px solid var(--gray-200);
-  border-radius: var(--radius-lg);
-  font-size: 0.9rem;
-  background: var(--bg-primary);
+  flex: 1;
+  padding: var(--space-md) var(--space-sm);
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.search-scope-select {
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  background: var(--gray-50);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-left: var(--space-sm);
+  outline: none;
   transition: all var(--transition-fast);
 }
 
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary-blue);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.search-scope-select:hover {
+  background: var(--gray-100);
+  color: var(--text-primary);
+}
+
+.search-scope-select:focus {
+  background: var(--primary-green-lighter);
+  color: var(--primary-green-dark);
+}
+
+.search-input-group:focus-within {
+  border-color: var(--primary-green);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
 }
 
 .search-icon {
-  position: absolute;
-  left: var(--space-md);
   color: var(--text-tertiary);
   font-size: 0.9rem;
+  margin-right: var(--space-sm);
 }
 
-.search-btn, .people-btn {
+.search-btn {
   padding: var(--space-md) var(--space-lg);
   background: linear-gradient(135deg, var(--primary-green), var(--primary-green-dark));
   color: var(--text-inverse);
@@ -534,9 +560,10 @@ a:hover {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  margin-left: var(--space-sm);
 }
 
-.search-btn:hover, .people-btn:hover {
+.search-btn:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }

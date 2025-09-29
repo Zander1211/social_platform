@@ -19,7 +19,7 @@ class PostController
         
         if ($hasModernSchema) {
             // Modern schema with title and content columns
-            $sql = "SELECT p.id, COALESCE(p.title, '') AS title, COALESCE(p.content, '') AS content, p.created_at, u.name AS author, u.role
+            $sql = "SELECT p.id, p.user_id, COALESCE(p.title, '') AS title, COALESCE(p.content, '') AS content, p.created_at, u.name AS author, u.role
                     FROM posts p
                     LEFT JOIN users u ON p.user_id = u.id";
             
@@ -30,7 +30,7 @@ class PostController
             }
         } else {
             // Legacy schema with caption column only
-            $sql = "SELECT p.id, '' AS title, COALESCE(p.caption, '') AS content, p.created_at, u.name AS author, u.role
+            $sql = "SELECT p.id, p.user_id, '' AS title, COALESCE(p.caption, '') AS content, p.created_at, u.name AS author, u.role
                     FROM posts p
                     LEFT JOIN users u ON p.user_id = u.id";
             

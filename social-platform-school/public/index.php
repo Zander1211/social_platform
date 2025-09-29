@@ -393,7 +393,7 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
                 echo '<div class="person-actions">';
                 echo '<a href="profile.php?id='.$uid.'" class="btn secondary"><i class="fas fa-user"></i> View Profile</a>';
                 if (isset($_SESSION['user_id']) && $_SESSION['user_id'] != $uid) {
-                  echo '<a href="chat.php" class="btn primary"><i class="fas fa-comments"></i> Message</a>';
+                  echo '<a href="chat.php?user_id='.$uid.'" class="btn primary"><i class="fas fa-comments"></i> Message</a>';
                 }
                 echo '</div>';
                 echo '</div>';
@@ -443,7 +443,7 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
                 echo '<div class="person-actions compact">';
                 echo '<a href="profile.php?id='.$uid.'" class="btn secondary small"><i class="fas fa-user"></i></a>';
                 if (isset($_SESSION['user_id']) && $_SESSION['user_id'] != $uid) {
-                  echo '<a href="chat.php" class="btn primary small"><i class="fas fa-comments"></i></a>';
+                  echo '<a href="chat.php?user_id='.$uid.'" class="btn primary small"><i class="fas fa-comments"></i></a>';
                 }
                 echo '</div>';
                 echo '</div>';
@@ -487,7 +487,15 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
               echo '<article class="post-card">';
               echo '<div class="post-header">';
               echo '<div class="post-meta">';
-              echo '<span class="post-author">'.htmlspecialchars($p['author'] ?? '').'</span>';
+              $authorId = (int)($p['user_id'] ?? 0);
+              $authorName = htmlspecialchars($p['author'] ?? '');
+              if ($authorId > 0) {
+                echo '<a href="profile.php?id='.$authorId.'" class="post-author-link">';
+                echo '<span class="post-author">'.$authorName.'</span>';
+                echo '</a>';
+              } else {
+                echo '<span class="post-author">'.$authorName.'</span>';
+              }
               echo '<span class="post-date">'.htmlspecialchars($p['created_at'] ?? '').'</span>';
               echo '</div>';
               echo '</div>';

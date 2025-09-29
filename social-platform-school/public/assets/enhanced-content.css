@@ -52,6 +52,25 @@
   font-size: 1rem;
 }
 
+.post-author-link {
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+  margin: -2px -4px;
+  display: inline-block;
+}
+
+.post-author-link:hover {
+  background: var(--primary-green-lighter);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);
+}
+
+.post-author-link:hover .post-author {
+  color: var(--primary-green-dark);
+}
+
 .post-date {
   color: var(--text-tertiary);
   font-size: 0.875rem;

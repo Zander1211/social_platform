@@ -83,14 +83,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     body {
-      background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--academic-gray-100) 50%, var(--bg-secondary) 100%);
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 25%, #334155 50%, #1e293b 75%, #0f172a 100%);
       color: var(--text-primary);
       line-height: 1.6;
       position: relative;
       overflow-x: hidden;
     }
 
-    /* Academic Background Pattern */
+    /* Dark Mode Background Pattern */
     body::before {
       content: '';
       position: fixed;
@@ -99,8 +99,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       width: 100%;
       height: 100%;
       background-image: 
-        radial-gradient(circle at 25% 25%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
-        radial-gradient(circle at 75% 75%, rgba(20, 184, 166, 0.05) 0%, transparent 50%);
+        radial-gradient(circle at 25% 25%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 75% 75%, rgba(20, 184, 166, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(52, 211, 153, 0.04) 0%, transparent 70%);
+      z-index: -1;
+    }
+
+    /* Additional dark texture overlay */
+    body::after {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+        repeating-linear-gradient(
+          45deg,
+          transparent,
+          transparent 2px,
+          rgba(16, 185, 129, 0.02) 2px,
+          rgba(16, 185, 129, 0.02) 4px
+        );
       z-index: -1;
     }
 
@@ -110,6 +130,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       align-items: center;
       justify-content: center;
       padding: 2rem 1rem;
+      position: relative;
+      z-index: 1;
     }
 
     .login-card {
@@ -117,12 +139,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       max-width: 1100px;
       background: var(--bg-primary);
       border-radius: 1.5rem;
-      box-shadow: var(--shadow-xl);
+      box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(16, 185, 129, 0.1),
+        0 0 20px rgba(16, 185, 129, 0.1);
       overflow: hidden;
       display: grid;
       grid-template-columns: 1fr 1fr;
       border: 3px solid var(--academic-green);
       position: relative;
+      animation: cardFloat 6s ease-in-out infinite;
     }
 
     /* Academic Header Strip */
@@ -478,6 +504,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       100% { transform: rotate(360deg); }
     }
 
+    @keyframes cardFloat {
+      0%, 100% {
+        transform: translateY(0px) scale(1);
+      }
+      50% {
+        transform: translateY(-8px) scale(1.002);
+      }
+    }
+
+    /* Floating particles animation */
+    @keyframes float {
+      0%, 100% {
+        transform: translateY(0px) rotate(0deg);
+        opacity: 0.7;
+      }
+      50% {
+        transform: translateY(-20px) rotate(180deg);
+        opacity: 1;
+      }
+    }
+
+    /* Floating particles */
+    .floating-particles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .particle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(16, 185, 129, 0.6);
+      border-radius: 50%;
+      animation: float 8s ease-in-out infinite;
+    }
+
+    .particle:nth-child(1) {
+      top: 20%;
+      left: 20%;
+      animation-delay: 0s;
+      animation-duration: 8s;
+    }
+
+    .particle:nth-child(2) {
+      top: 60%;
+      left: 80%;
+      animation-delay: 2s;
+      animation-duration: 10s;
+      background: rgba(20, 184, 166, 0.5);
+    }
+
+    .particle:nth-child(3) {
+      top: 80%;
+      left: 30%;
+      animation-delay: 4s;
+      animation-duration: 12s;
+      background: rgba(52, 211, 153, 0.4);
+    }
+
+    .particle:nth-child(4) {
+      top: 30%;
+      left: 70%;
+      animation-delay: 6s;
+      animation-duration: 9s;
+      background: rgba(16, 185, 129, 0.3);
+    }
+
+    .particle:nth-child(5) {
+      top: 70%;
+      left: 10%;
+      animation-delay: 1s;
+      animation-duration: 11s;
+      background: rgba(20, 184, 166, 0.4);
+    }
+
     /* Focus Accessibility */
     .form-input:focus,
     .login-button:focus,
@@ -489,6 +595,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </style>
 </head>
 <body>
+  <!-- Floating particles for enhanced dark theme -->
+  <div class="floating-particles">
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+  </div>
+  
   <div class="login-container">
     <div class="login-card">
       <!-- Academic Visual Section -->

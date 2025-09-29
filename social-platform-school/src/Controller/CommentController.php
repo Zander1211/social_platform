@@ -52,7 +52,7 @@ class CommentController
 
     public function getComments($postId)
     {
-        $stmt = $this->pdo->prepare('SELECT c.*, u.name as author FROM comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.post_id = :post_id ORDER BY c.created_at ASC');
+        $stmt = $this->pdo->prepare('SELECT c.*, c.user_id, u.name as author FROM comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.post_id = :post_id ORDER BY c.created_at ASC');
         $stmt->execute([':post_id' => $postId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }

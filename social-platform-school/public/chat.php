@@ -142,13 +142,13 @@ if (isset($_GET['user_id']) && !isset($_GET['room']) && !isset($_GET['group'])) 
                     </div>
                 </div>
                 <div class="chat-actions">
-                    <button class="btn btn-secondary btn-sm" title="Voice Call">
+                    <button class="btn btn-secondary btn-sm" title="Voice Call" disabled style="opacity: 0.5; cursor: not-allowed;">
                         <i class="fas fa-phone"></i>
                     </button>
-                    <button class="btn btn-secondary btn-sm" title="Video Call">
+                    <button class="btn btn-secondary btn-sm" title="Video Call" disabled style="opacity: 0.5; cursor: not-allowed;">
                         <i class="fas fa-video"></i>
                     </button>
-                    <button class="btn btn-secondary btn-sm" title="Group Info">
+                    <button class="btn btn-secondary btn-sm" title="Group Info" disabled style="opacity: 0.5; cursor: not-allowed;">
                         <i class="fas fa-info-circle"></i>
                     </button>
                 </div>
@@ -186,7 +186,7 @@ if (isset($_GET['user_id']) && !isset($_GET['room']) && !isset($_GET['group'])) 
             <!-- Message Input -->
             <div class="message-input-container">
                 <form method="POST" class="message-form" id="messageForm">
-                    <input type="hidden" name="group_id" value="<?php echo $gid; ?>">
+                    <input type="hidden" name="group_id" value="<?php echo $roomId; ?>">
                     <div class="message-input-group">
                         <textarea 
                             class="message-input" 
