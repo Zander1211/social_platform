@@ -11,7 +11,7 @@ class ReactionController
 
     public function addReaction($userId, $postId, $reactionType)
     {
-        if (!in_array($reactionType, ['like', 'haha', 'heart', 'sad', 'angry'])) {
+        if (!in_array($reactionType, ['like', 'haha', 'heart', 'sad', 'angry', 'wow'])) {
             throw new InvalidArgumentException('Invalid reaction type');
         }
         // ensure single reaction per user per post: remove previous then insert
@@ -47,7 +47,7 @@ class ReactionController
 
     public function reactToComment($commentId, $userId, $reaction)
     {
-        if (!in_array($reaction, ['like', 'haha', 'heart', 'sad', 'angry'])) {
+        if (!in_array($reaction, ['like', 'haha', 'heart', 'sad', 'angry', 'wow'])) {
             throw new InvalidArgumentException('Invalid reaction type');
         }
         // ensure single reaction per user per comment: remove previous then insert

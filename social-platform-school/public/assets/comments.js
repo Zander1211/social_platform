@@ -33,13 +33,8 @@ function initializeComments() {
         if (e.target.closest('.reaction-trigger')) {
             const button = e.target.closest('.reaction-trigger');
             
-            // Check if user is holding Shift for emoji picker, otherwise just like
-            if (e.shiftKey) {
-                handleReactionClick(button);
-            } else {
-                // Direct like action
-                handleDirectReaction(button, 'like');
-            }
+            // Always show emoji picker on click
+            handleReactionClick(button);
         }
         
         if (e.target.closest('.emoji')) {
@@ -324,26 +319,55 @@ notificationStyle.textContent = `
     .emoji-picker {
         display: none;
         gap: var(--space-sm);
-        padding: var(--space-sm);
+        padding: var(--space-md);
         background: var(--bg-primary);
         border: 1px solid var(--gray-200);
         border-radius: var(--radius-lg);
-        box-shadow: var(--shadow-lg);
+        box-shadow: var(--shadow-xl);
         z-index: 1000;
         position: absolute;
+        backdrop-filter: blur(10px);
+        animation: emojiPickerSlideIn 0.3s ease-out;
+    }
+    
+    @keyframes emojiPickerSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.9);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
     }
     
     .emoji {
-        font-size: 1.5rem;
+        font-size: 1.8rem;
         cursor: pointer;
-        padding: var(--space-xs);
-        border-radius: var(--radius-md);
+        padding: var(--space-md);
+        border-radius: var(--radius-lg);
         transition: all var(--transition-fast);
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        min-height: 40px;
     }
     
     .emoji:hover {
-        background: var(--gray-100);
+        background: linear-gradient(135deg, var(--primary-green-lighter), var(--primary-green-light));
+        transform: scale(1.3);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .emoji:active {
         transform: scale(1.1);
+    }
+    
+    .reaction-container {
+        position: relative;
+        display: inline-block;
     }
 `;
 document.head.appendChild(notificationStyle);

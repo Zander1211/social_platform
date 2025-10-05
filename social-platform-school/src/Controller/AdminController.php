@@ -62,6 +62,16 @@ class AdminController
         }
     }
 
+    private function getTableColumns($tableName)
+    {
+        try {
+            $stmt = $this->pdo->query("SHOW COLUMNS FROM `$tableName`");
+            return $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+        } catch (PDOException $e) {
+            return [];
+        }
+    }
+
     public function deletePost($postId)
     {
         // Cascade delete associated reactions and comments first
@@ -213,11 +223,22 @@ class AdminController
     public function issueWarning($userId, $reason, $level = 'low')
     {
         try {
-            $stmt = $this->pdo->prepare("
-                INSERT INTO user_warnings (user_id, reason, warning_level, is_active, created_at) 
-                VALUES (?, ?, ?, 1, NOW())
-            ");
-            $result = $stmt->execute([$userId, $reason, $level]);
+            // Check if user_id column exists, fallback to warned_user_id
+            $columns = $this->getTableColumns('user_warnings');
+            if (in_array('user_id', $columns)) {
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO user_warnings (user_id, warned_by_user_id, reason, warning_level, is_active, created_at) 
+                    VALUES (?, ?, ?, ?, 1, NOW())
+                ");
+                $result = $stmt->execute([$userId, $_SESSION['user_id'] ?? null, $reason, $level]);
+            } else {
+                // Fallback to old schema
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO user_warnings (warned_user_id, warned_by_user_id, reason, warning_level, is_active, created_at) 
+                    VALUES (?, ?, ?, ?, 1, NOW())
+                ");
+                $result = $stmt->execute([$userId, $_SESSION['user_id'] ?? null, $reason, $level]);
+            }
             
             if ($result) {
                 // Log the warning action
@@ -226,6 +247,7 @@ class AdminController
             }
             return false;
         } catch (PDOException $e) {
+            error_log("Warning issue error: " . $e->getMessage());
             return false;
         }
     }
@@ -233,14 +255,25 @@ class AdminController
     public function getUserWarnings($userId)
     {
         try {
-            $stmt = $this->pdo->prepare("
-                SELECT * FROM user_warnings 
-                WHERE user_id = ? AND is_active = 1 
-                ORDER BY created_at DESC
-            ");
+            $columns = $this->getTableColumns('user_warnings');
+            if (in_array('user_id', $columns)) {
+                $stmt = $this->pdo->prepare("
+                    SELECT * FROM user_warnings 
+                    WHERE user_id = ? AND is_active = 1 
+                    ORDER BY created_at DESC
+                ");
+            } else {
+                // Fallback to old schema
+                $stmt = $this->pdo->prepare("
+                    SELECT * FROM user_warnings 
+                    WHERE warned_user_id = ? AND is_active = 1 
+                    ORDER BY created_at DESC
+                ");
+            }
             $stmt->execute([$userId]);
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
+            error_log("Get user warnings error: " . $e->getMessage());
             return [];
         }
     }
@@ -248,15 +281,28 @@ class AdminController
     public function getAllWarnings()
     {
         try {
-            $stmt = $this->pdo->query("
-                SELECT w.*, u.name as user_name, u.email as user_email 
-                FROM user_warnings w 
-                LEFT JOIN users u ON w.user_id = u.id 
-                WHERE w.is_active = 1 
-                ORDER BY w.created_at DESC
-            ");
+            $columns = $this->getTableColumns('user_warnings');
+            if (in_array('user_id', $columns)) {
+                $stmt = $this->pdo->query("
+                    SELECT w.*, u.name as user_name, u.email as user_email 
+                    FROM user_warnings w 
+                    LEFT JOIN users u ON w.user_id = u.id 
+                    WHERE w.is_active = 1 
+                    ORDER BY w.created_at DESC
+                ");
+            } else {
+                // Fallback to old schema
+                $stmt = $this->pdo->query("
+                    SELECT w.*, u.name as user_name, u.email as user_email 
+                    FROM user_warnings w 
+                    LEFT JOIN users u ON w.warned_user_id = u.id 
+                    WHERE w.is_active = 1 
+                    ORDER BY w.created_at DESC
+                ");
+            }
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
+            error_log("Get warnings error: " . $e->getMessage());
             return [];
         }
     }
@@ -393,11 +439,21 @@ class AdminController
     public function suspendUser($userId, $suspendedBy, $reason, $type = 'temporary', $until = null)
     {
         try {
-            $stmt = $this->pdo->prepare("
-                INSERT INTO user_suspensions (user_id, suspended_by_user_id, reason, suspension_type, suspended_until, is_active, created_at) 
-                VALUES (?, ?, ?, ?, ?, 1, NOW())
-            ");
-            $result = $stmt->execute([$userId, $suspendedBy, $reason, $type, $until]);
+            $columns = $this->getTableColumns('user_suspensions');
+            if (in_array('suspended_by_user_id', $columns) && in_array('suspension_type', $columns)) {
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO user_suspensions (user_id, suspended_by_user_id, reason, suspension_type, suspended_until, is_active, created_at) 
+                    VALUES (?, ?, ?, ?, ?, 1, NOW())
+                ");
+                $result = $stmt->execute([$userId, $suspendedBy, $reason, $type, $until]);
+            } else {
+                // Fallback to basic schema
+                $stmt = $this->pdo->prepare("
+                    INSERT INTO user_suspensions (user_id, reason, suspended_until, is_active, created_at) 
+                    VALUES (?, ?, ?, 1, NOW())
+                ");
+                $result = $stmt->execute([$userId, $reason, $until]);
+            }
             
             if ($result) {
                 $this->logWarningAction($userId, 'user_suspended', "User suspended: $type - $reason");
@@ -405,6 +461,7 @@ class AdminController
             
             return $result;
         } catch (PDOException $e) {
+            error_log("Suspend user error: " . $e->getMessage());
             return false;
         }
     }
@@ -428,11 +485,21 @@ class AdminController
     public function isUserSuspended($userId)
     {
         try {
-            $stmt = $this->pdo->prepare("
-                SELECT COUNT(*) FROM user_suspensions 
-                WHERE user_id = ? AND is_active = 1 
-                AND (suspension_type = 'permanent' OR suspended_until > NOW())
-            ");
+            $columns = $this->getTableColumns('user_suspensions');
+            if (in_array('suspension_type', $columns)) {
+                $stmt = $this->pdo->prepare("
+                    SELECT COUNT(*) FROM user_suspensions 
+                    WHERE user_id = ? AND is_active = 1 
+                    AND (suspension_type = 'permanent' OR suspended_until > NOW())
+                ");
+            } else {
+                // Fallback for basic schema
+                $stmt = $this->pdo->prepare("
+                    SELECT COUNT(*) FROM user_suspensions 
+                    WHERE user_id = ? AND is_active = 1 
+                    AND (suspended_until IS NULL OR suspended_until > NOW())
+                ");
+            }
             $stmt->execute([$userId]);
             return $stmt->fetchColumn() > 0;
         } catch (PDOException $e) {
@@ -443,14 +510,26 @@ class AdminController
     public function getUserSuspension($userId)
     {
         try {
-            $stmt = $this->pdo->prepare("
-                SELECT s.*, u.name as suspended_by_name 
-                FROM user_suspensions s 
-                LEFT JOIN users u ON s.suspended_by_user_id = u.id 
-                WHERE s.user_id = ? AND s.is_active = 1 
-                AND (s.suspension_type = 'permanent' OR s.suspended_until > NOW())
-                ORDER BY s.created_at DESC LIMIT 1
-            ");
+            $columns = $this->getTableColumns('user_suspensions');
+            if (in_array('suspended_by_user_id', $columns) && in_array('suspension_type', $columns)) {
+                $stmt = $this->pdo->prepare("
+                    SELECT s.*, u.name as suspended_by_name 
+                    FROM user_suspensions s 
+                    LEFT JOIN users u ON s.suspended_by_user_id = u.id 
+                    WHERE s.user_id = ? AND s.is_active = 1 
+                    AND (s.suspension_type = 'permanent' OR s.suspended_until > NOW())
+                    ORDER BY s.created_at DESC LIMIT 1
+                ");
+            } else {
+                // Fallback for basic schema
+                $stmt = $this->pdo->prepare("
+                    SELECT s.*, 'System' as suspended_by_name, 'temporary' as suspension_type 
+                    FROM user_suspensions s 
+                    WHERE s.user_id = ? AND s.is_active = 1 
+                    AND (s.suspended_until IS NULL OR s.suspended_until > NOW())
+                    ORDER BY s.created_at DESC LIMIT 1
+                ");
+            }
             $stmt->execute([$userId]);
             return $stmt->fetch(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
@@ -461,18 +540,33 @@ class AdminController
     public function getAllSuspensions()
     {
         try {
-            $stmt = $this->pdo->query("
-                SELECT s.*, 
-                       u1.name as user_name, u1.email as user_email,
-                       u2.name as suspended_by_name, u2.email as suspended_by_email
-                FROM user_suspensions s 
-                LEFT JOIN users u1 ON s.user_id = u1.id 
-                LEFT JOIN users u2 ON s.suspended_by_user_id = u2.id 
-                WHERE s.is_active = 1 
-                ORDER BY s.created_at DESC
-            ");
+            $columns = $this->getTableColumns('user_suspensions');
+            if (in_array('suspended_by_user_id', $columns)) {
+                $stmt = $this->pdo->query("
+                    SELECT s.*, 
+                           u1.name as user_name, u1.email as user_email,
+                           u2.name as suspended_by_name, u2.email as suspended_by_email
+                    FROM user_suspensions s 
+                    LEFT JOIN users u1 ON s.user_id = u1.id 
+                    LEFT JOIN users u2 ON s.suspended_by_user_id = u2.id 
+                    WHERE s.is_active = 1 
+                    ORDER BY s.created_at DESC
+                ");
+            } else {
+                // Fallback to basic schema
+                $stmt = $this->pdo->query("
+                    SELECT s.*, 
+                           u1.name as user_name, u1.email as user_email,
+                           'System' as suspended_by_name, '' as suspended_by_email
+                    FROM user_suspensions s 
+                    LEFT JOIN users u1 ON s.user_id = u1.id 
+                    WHERE s.is_active = 1 
+                    ORDER BY s.created_at DESC
+                ");
+            }
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (PDOException $e) {
+            error_log("Get suspensions error: " . $e->getMessage());
             return [];
         }
     }
@@ -521,13 +615,25 @@ class AdminController
     public function updateReportStatus($reportId, $status, $adminNotes = '')
     {
         try {
-            $stmt = $this->pdo->prepare("
-                UPDATE user_reports 
-                SET status = ?, admin_notes = ?, updated_at = NOW() 
-                WHERE id = ?
-            ");
-            return $stmt->execute([$status, $adminNotes, $reportId]);
+            $columns = $this->getTableColumns('user_reports');
+            if (in_array('admin_notes', $columns)) {
+                $stmt = $this->pdo->prepare("
+                    UPDATE user_reports 
+                    SET status = ?, admin_notes = ?, updated_at = NOW() 
+                    WHERE id = ?
+                ");
+                return $stmt->execute([$status, $adminNotes, $reportId]);
+            } else {
+                // Fallback without admin_notes
+                $stmt = $this->pdo->prepare("
+                    UPDATE user_reports 
+                    SET status = ?, updated_at = NOW() 
+                    WHERE id = ?
+                ");
+                return $stmt->execute([$status, $reportId]);
+            }
         } catch (PDOException $e) {
+            error_log("Update report status error: " . $e->getMessage());
             return false;
         }
     }
@@ -608,13 +714,25 @@ class AdminController
     public function cleanupExpiredSuspensions()
     {
         try {
-            $stmt = $this->pdo->prepare("
-                UPDATE user_suspensions 
-                SET is_active = 0 
-                WHERE suspension_type = 'temporary' 
-                AND suspended_until < NOW() 
-                AND is_active = 1
-            ");
+            $columns = $this->getTableColumns('user_suspensions');
+            if (in_array('suspension_type', $columns)) {
+                $stmt = $this->pdo->prepare("
+                    UPDATE user_suspensions 
+                    SET is_active = 0 
+                    WHERE suspension_type = 'temporary' 
+                    AND suspended_until < NOW() 
+                    AND is_active = 1
+                ");
+            } else {
+                // Fallback for basic schema
+                $stmt = $this->pdo->prepare("
+                    UPDATE user_suspensions 
+                    SET is_active = 0 
+                    WHERE suspended_until IS NOT NULL 
+                    AND suspended_until < NOW() 
+                    AND is_active = 1
+                ");
+            }
             return $stmt->execute();
         } catch (PDOException $e) {
             return false;

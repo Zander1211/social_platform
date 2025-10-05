@@ -94,55 +94,119 @@ foreach ($posts as $post) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['delete_post'])) {
-        $adminController->deletePost($_POST['post_id']);
-        header('Location: admin.php');
-        exit();
-    }
+    try {
+        if (isset($_POST['delete_post'])) {
+            $result = $adminController->deletePost($_POST['post_id']);
+            if ($result) {
+                $_SESSION['admin_success'] = 'Post deleted successfully.';
+            } else {
+                $_SESSION['admin_error'] = 'Failed to delete post.';
+            }
+            header('Location: admin.php#posts');
+            exit();
+        }
 
-    if (isset($_POST['delete_comment'])) {
-        $adminController->deleteCommentAdmin($_POST['comment_id']);
-        header('Location: admin.php');
-        exit();
-    }
+        if (isset($_POST['delete_comment'])) {
+            $result = $adminController->deleteCommentAdmin($_POST['comment_id']);
+            if ($result) {
+                $_SESSION['admin_success'] = 'Comment deleted successfully.';
+            } else {
+                $_SESSION['admin_error'] = 'Failed to delete comment.';
+            }
+            header('Location: admin.php#posts');
+            exit();
+        }
 
-    if (isset($_POST['delete_event'])) {
-        $adminController->deleteEvent($_POST['event_id']);
+        if (isset($_POST['delete_event'])) {
+            $result = $adminController->deleteEvent($_POST['event_id']);
+            if ($result) {
+                $_SESSION['admin_success'] = 'Event deleted successfully.';
+            } else {
+                $_SESSION['admin_error'] = 'Failed to delete event.';
+            }
+            header('Location: admin.php#events');
+            exit();
+        }
+        
+        // Warning system actions
+        if (isset($_POST['issue_warning'])) {
+            $result = $adminController->issueWarning($_POST['user_id'], $_POST['reason'], $_POST['warning_level']);
+            if ($result) {
+                $_SESSION['admin_success'] = 'Warning issued successfully.';
+            } else {
+                $_SESSION['admin_error'] = 'Failed to issue warning.';
+            }
+            header('Location: admin.php#users');
+            exit();
+        }
+        
+        if (isset($_POST['dismiss_warning'])) {
+            $result = $adminController->dismissWarning($_POST['warning_id']);
+            if ($result) {
+                $_SESSION['admin_success'] = 'Warning dismissed successfully.';
+            } else {
+                $_SESSION['admin_error'] = 'Failed to dismiss warning.';
+            }
+            header('Location: admin.php#warnings');
+            exit();
+        }
+        
+        // Suspension actions
+        if (isset($_POST['suspend_user'])) {
+            $until = $_POST['suspension_type'] === 'temporary' && !empty($_POST['suspended_until']) ? $_POST['suspended_until'] : null;
+            $result = $adminController->suspendUser($_POST['user_id'], $_SESSION['user_id'], $_POST['reason'], $_POST['suspension_type'], $until);
+            if ($result) {
+                $_SESSION['admin_success'] = 'User suspended successfully.';
+            } else {
+                $_SESSION['admin_error'] = 'Failed to suspend user.';
+            }
+            header('Location: admin.php#users');
+            exit();
+        }
+        
+        if (isset($_POST['unsuspend_user'])) {
+            $result = $adminController->unsuspendUser($_POST['user_id']);
+            if ($result) {
+                $_SESSION['admin_success'] = 'User unsuspended successfully.';
+            } else {
+                $_SESSION['admin_error'] = 'Failed to unsuspend user.';
+            }
+            header('Location: admin.php#suspensions');
+            exit();
+        }
+        
+        // Report actions
+        if (isset($_POST['update_report'])) {
+            $result = $adminController->updateReportStatus($_POST['report_id'], $_POST['status'], $_POST['admin_notes'] ?? '');
+            if ($result) {
+                $_SESSION['admin_success'] = 'Report status updated successfully.';
+            } else {
+                $_SESSION['admin_error'] = 'Failed to update report status.';
+            }
+            header('Location: admin.php#reports');
+            exit();
+        }
+        
+        // Create event action
+        if (isset($_POST['create_event'])) {
+            $eventData = [
+                'title' => $_POST['event_title'],
+                'description' => $_POST['event_description'],
+                'event_date' => $_POST['event_date'],
+                'created_by' => $_SESSION['user_id']
+            ];
+            $result = $adminController->createEvent($eventData);
+            if ($result) {
+                $_SESSION['admin_success'] = 'Event created successfully.';
+            } else {
+                $_SESSION['admin_error'] = 'Failed to create event.';
+            }
+            header('Location: admin.php#events');
+            exit();
+        }
+    } catch (Exception $e) {
+        $_SESSION['admin_error'] = 'An error occurred: ' . $e->getMessage();
         header('Location: admin.php');
-        exit();
-    }
-    
-    // Warning system actions
-    if (isset($_POST['issue_warning'])) {
-        $adminController->issueWarning($_POST['user_id'], $_POST['reason'], $_POST['warning_level']);
-        header('Location: admin.php#users');
-        exit();
-    }
-    
-    if (isset($_POST['dismiss_warning'])) {
-        $adminController->dismissWarning($_POST['warning_id']);
-        header('Location: admin.php#warnings');
-        exit();
-    }
-    
-    // Suspension actions
-    if (isset($_POST['suspend_user'])) {
-        $until = $_POST['suspension_type'] === 'temporary' && !empty($_POST['suspended_until']) ? $_POST['suspended_until'] : null;
-        $adminController->suspendUser($_POST['user_id'], $_SESSION['user_id'], $_POST['reason'], $_POST['suspension_type'], $until);
-        header('Location: admin.php#users');
-        exit();
-    }
-    
-    if (isset($_POST['unsuspend_user'])) {
-        $adminController->unsuspendUser($_POST['user_id']);
-        header('Location: admin.php#suspensions');
-        exit();
-    }
-    
-    // Report actions
-    if (isset($_POST['update_report'])) {
-        $adminController->updateReportStatus($_POST['report_id'], $_POST['status'], $_POST['admin_notes'] ?? '');
-        header('Location: admin.php#reports');
         exit();
     }
 }
@@ -191,10 +255,112 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         .tab-content {
             display: none;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
         .tab-content.active {
             display: block;
+            background: #ffffff;
+            color: #1f2937;
+        }
+        
+        .tab-content h2 {
+            color: #111827;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+        
+        .tab-content .admin-table {
+            background: #ffffff;
+        }
+        
+        .tab-content .admin-table th {
+            background: #f9fafb;
+            color: #374151;
+            font-weight: 600;
+        }
+        
+        .tab-content .admin-table td {
+            color: #1f2937;
+        }
+        
+        /* Enhanced text visibility in tab content */
+        .tab-content .post {
+            background: #ffffff;
+            color: #1f2937;
+        }
+        
+        .tab-content .post h3 {
+            color: #111827;
+        }
+        
+        .tab-content .post-content {
+            color: #374151;
+        }
+        
+        .tab-content small {
+            color: #6b7280;
+        }
+        
+        .tab-content .comment-item {
+            background: #f9fafb;
+            color: #1f2937;
+        }
+        
+        .tab-content .user-actions button {
+            color: white;
+        }
+        
+        /* Admin Messages */
+        .admin-message {
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+            animation: slideDown 0.3s ease-out;
+        }
+        
+        .admin-success {
+            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+        
+        .admin-error {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Create Event Form */
+        .create-event-form {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .create-event-form h3 {
+            margin-bottom: 15px;
+            color: #111827;
         }
         
         /* Stats Cards */
@@ -531,6 +697,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
     <?php require_once __DIR__ . '/../src/View/header.php'; ?>
     <main class="container">
+        
+        <!-- Admin Success/Error Messages -->
+        <?php if (isset($_SESSION['admin_success'])): ?>
+            <div class="admin-message admin-success">
+                <i class="fas fa-check-circle"></i>
+                <?php echo htmlspecialchars($_SESSION['admin_success']); unset($_SESSION['admin_success']); ?>
+            </div>
+        <?php endif; ?>
+        
+        <?php if (isset($_SESSION['admin_error'])): ?>
+            <div class="admin-message admin-error">
+                <i class="fas fa-exclamation-triangle"></i>
+                <?php echo htmlspecialchars($_SESSION['admin_error']); unset($_SESSION['admin_error']); ?>
+            </div>
+        <?php endif; ?>
         <div class="layout">
             <div>
                 <!-- Admin Dashboard Header -->
@@ -626,9 +807,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <tbody>
                                 <?php foreach ($warnings as $warning): ?>
                                 <tr>
-                                    <td><?php echo htmlspecialchars($warning['user_name']); ?></td>
-                                    <td><?php echo htmlspecialchars($warning['reason']); ?></td>
-                                    <td><span class="warning-level <?php echo $warning['warning_level']; ?>"><?php echo $warning['warning_level']; ?></span></td>
+                                    <td><?php echo htmlspecialchars($warning['user_name'] ?? 'Unknown User'); ?></td>
+                                    <td><?php echo htmlspecialchars($warning['reason'] ?? 'No reason provided'); ?></td>
+                                    <td><span class="warning-level <?php echo $warning['warning_level'] ?? 'low'; ?>"><?php echo $warning['warning_level'] ?? 'low'; ?></span></td>
                                     <td><?php echo date('M j, Y g:i A', strtotime($warning['created_at'])); ?></td>
                                     <td>
                                         <form method="POST" style="display: inline;">
@@ -660,11 +841,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <tbody>
                                 <?php foreach ($suspensions as $suspension): ?>
                                 <tr>
-                                    <td><?php echo htmlspecialchars($suspension['user_name']); ?></td>
-                                    <td><?php echo htmlspecialchars($suspension['reason']); ?></td>
-                                    <td><?php echo $suspension['suspension_type']; ?></td>
+                                    <td><?php echo htmlspecialchars($suspension['user_name'] ?? 'Unknown User'); ?></td>
+                                    <td><?php echo htmlspecialchars($suspension['reason'] ?? 'No reason provided'); ?></td>
+                                    <td><?php echo htmlspecialchars($suspension['suspension_type'] ?? 'temporary'); ?></td>
                                     <td><?php echo $suspension['suspended_until'] ? date('M j, Y g:i A', strtotime($suspension['suspended_until'])) : 'Permanent'; ?></td>
-                                    <td><?php echo htmlspecialchars($suspension['suspended_by_name']); ?></td>
+                                    <td><?php echo htmlspecialchars($suspension['suspended_by_name'] ?? 'System'); ?></td>
                                     <td><?php echo date('M j, Y g:i A', strtotime($suspension['created_at'])); ?></td>
                                     <td>
                                         <form method="POST" style="display: inline;">
@@ -772,6 +953,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <!-- Events Tab -->
                     <div id="events" class="tab-content">
                         <h2>Manage Events</h2>
+                        
+                        <!-- Create Event Form -->
+                        <div class="create-event-form">
+                            <h3><i class="fas fa-plus-circle"></i> Create New Event</h3>
+                            <form method="POST">
+                                <input type="hidden" name="create_event" value="1">
+                                <div class="form-group">
+                                    <label for="event_title">Event Title:</label>
+                                    <input type="text" name="event_title" id="event_title" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="event_description">Description:</label>
+                                    <textarea name="event_description" id="event_description" rows="3"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="event_date">Event Date & Time:</label>
+                                    <input type="datetime-local" name="event_date" id="event_date" required>
+                                </div>
+                                <button type="submit" class="btn-warning">Create Event</button>
+                            </form>
+                        </div>
                         <table class="admin-table">
                             <thead>
                                 <tr>
@@ -1105,6 +1307,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         function showSuspensionModal(userId, userName) {
             document.getElementById('suspension_user_id').value = userId;
             document.getElementById('suspension_user_name').textContent = userName;
+            
+            // Reset form
+            document.getElementById('suspension_type').value = 'temporary';
+            document.getElementById('suspension_reason').value = '';
+            
+            // Initialize date field
+            toggleSuspensionDate();
+            
             document.getElementById('suspensionModal').style.display = 'block';
             document.body.style.overflow = 'hidden';
         }
@@ -1112,12 +1322,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         function toggleSuspensionDate() {
             const suspensionType = document.getElementById('suspension_type').value;
             const dateGroup = document.getElementById('suspension_date_group');
+            const suspendedUntilInput = document.getElementById('suspended_until');
+            
             if (suspensionType === 'permanent') {
                 dateGroup.style.display = 'none';
-                document.getElementById('suspended_until').required = false;
+                suspendedUntilInput.required = false;
+                suspendedUntilInput.value = '';
             } else {
                 dateGroup.style.display = 'block';
-                document.getElementById('suspended_until').required = true;
+                suspendedUntilInput.required = true;
+                
+                // Set default date to 1 week from now
+                const defaultDate = new Date();
+                defaultDate.setDate(defaultDate.getDate() + 7);
+                const isoString = defaultDate.toISOString().slice(0, 16);
+                if (!suspendedUntilInput.value) {
+                    suspendedUntilInput.value = isoString;
+                }
             }
         }
         

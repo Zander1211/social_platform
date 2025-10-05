@@ -306,7 +306,7 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
           $pid = (int)($p['id'] ?? 0);
           $rx = $reactionController->getReactions($pid);
           $rxTotal = is_array($rx) ? count($rx) : 0;
-          $rxCounts = ['like'=>0,'haha'=>0,'heart'=>0,'sad'=>0,'angry'=>0];
+          $rxCounts = ['like'=>0,'haha'=>0,'heart'=>0,'sad'=>0,'angry'=>0,'wow'=>0];
           if (is_array($rx)) { foreach ($rx as $r0) { if (!empty($r0['type']) && isset($rxCounts[$r0['type']])) { $rxCounts[$r0['type']]++; } } }
 
           $comments = $commentController->getComments($pid);

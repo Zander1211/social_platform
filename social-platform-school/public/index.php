@@ -253,6 +253,25 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
     // If not authenticated, require login first
     if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit(); }
     
+    // Check for user warnings and suspensions
+    $adminController = new AdminController($pdo);
+    $userWarnings = $adminController->getUserWarnings($_SESSION['user_id']);
+    $hasActiveWarnings = !empty($userWarnings);
+    
+    // Check for user suspension
+    $userSuspension = $adminController->getUserSuspension($_SESSION['user_id']);
+    $isUserSuspended = !empty($userSuspension);
+    
+    // If user is suspended, show suspension notice and prevent access
+    if ($isUserSuspended) {
+        // Clean up expired suspensions first
+        $adminController->cleanupExpiredSuspensions();
+        
+        // Re-check suspension status after cleanup
+        $userSuspension = $adminController->getUserSuspension($_SESSION['user_id']);
+        $isUserSuspended = !empty($userSuspension);
+    }
+    
     // Prepare feed (support search q) and an AJAX endpoint for reactions
     $postController = new PostController($pdo);
     $commentController = new CommentController($pdo);
@@ -279,6 +298,345 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
         <div style="background:#f8d7da;color:#721c24;padding:12px;margin:16px;border:1px solid #f5c6cb;border-radius:8px;">
             <?php echo htmlspecialchars($_SESSION['error']); unset($_SESSION['error']); ?>
         </div>
+    <?php endif; ?>
+    
+    <!-- User Warnings Display -->
+    <?php if ($hasActiveWarnings): ?>
+        <div class="user-warnings-container">
+            <?php foreach ($userWarnings as $warning): ?>
+                <div class="warning-alert warning-<?php echo htmlspecialchars($warning['warning_level']); ?>">
+                    <div class="warning-header">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Warning - <?php echo ucfirst(htmlspecialchars($warning['warning_level'])); ?> Level</strong>
+                        <span class="warning-date"><?php echo date('M j, Y g:i A', strtotime($warning['created_at'])); ?></span>
+                    </div>
+                    <div class="warning-content">
+                        <p><?php echo nl2br(htmlspecialchars($warning['reason'])); ?></p>
+                    </div>
+                    <div class="warning-footer">
+                        <small>Please review our community guidelines and adjust your behavior accordingly.</small>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        
+        <style>
+        .user-warnings-container {
+            margin: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .warning-alert {
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 5px solid;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: warningSlideIn 0.5s ease-out;
+        }
+        
+        @keyframes warningSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .warning-low {
+            background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+            border-left-color: #3b82f6;
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+        
+        .warning-medium {
+            background: linear-gradient(135deg, #fef3cd 0%, #fde68a 100%);
+            border-left-color: #f59e0b;
+            color: #b45309;
+            font-weight: 600;
+        }
+        
+        .warning-high {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-left-color: #ef4444;
+            color: #b91c1c;
+            font-weight: 600;
+        }
+        
+        .warning-severe {
+            background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+            border-left-color: #dc2626;
+            color: #7f1d1d;
+            font-weight: 700;
+        }
+        
+        .warning-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .warning-header i {
+            font-size: 18px;
+        }
+        
+        .warning-date {
+            margin-left: auto;
+            font-size: 12px;
+            opacity: 0.8;
+            font-weight: normal;
+        }
+        
+        .warning-content {
+            margin-bottom: 12px;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+        
+        .warning-content p {
+            margin: 0;
+            font-weight: 500;
+        }
+        
+        .warning-footer {
+            font-size: 12px;
+            opacity: 0.8;
+            font-style: italic;
+        }
+        
+        @media (max-width: 768px) {
+            .user-warnings-container {
+                margin: 12px;
+            }
+            
+            .warning-alert {
+                padding: 16px;
+            }
+            
+            .warning-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            
+            .warning-date {
+                margin-left: 0;
+            }
+        }
+        </style>
+    <?php endif; ?>
+    
+    <!-- User Suspension Display -->
+    <?php if ($isUserSuspended): ?>
+        <div class="user-suspension-container">
+            <div class="suspension-alert suspension-<?php echo htmlspecialchars($userSuspension['suspension_type'] ?? 'temporary'); ?>">
+                <div class="suspension-header">
+                    <i class="fas fa-ban"></i>
+                    <strong>Account Suspended - <?php echo ucfirst(htmlspecialchars($userSuspension['suspension_type'] ?? 'Temporary')); ?></strong>
+                    <span class="suspension-date"><?php echo date('M j, Y g:i A', strtotime($userSuspension['created_at'])); ?></span>
+                </div>
+                <div class="suspension-content">
+                    <p><strong>Reason:</strong> <?php echo nl2br(htmlspecialchars($userSuspension['reason'] ?? 'No reason provided')); ?></p>
+                    <?php if ($userSuspension['suspension_type'] === 'temporary' && !empty($userSuspension['suspended_until'])): ?>
+                        <p><strong>Suspended Until:</strong> <?php echo date('M j, Y g:i A', strtotime($userSuspension['suspended_until'])); ?></p>
+                    <?php elseif ($userSuspension['suspension_type'] === 'permanent'): ?>
+                        <p><strong>Duration:</strong> Permanent suspension</p>
+                    <?php endif; ?>
+                    <?php if (!empty($userSuspension['suspended_by_name'])): ?>
+                        <p><strong>Suspended By:</strong> <?php echo htmlspecialchars($userSuspension['suspended_by_name']); ?></p>
+                    <?php endif; ?>
+                </div>
+                <div class="suspension-footer">
+                    <small>Your account access has been restricted. If you believe this is an error, please contact the administrators.</small>
+                </div>
+                <div class="suspension-actions">
+                    <a href="logout.php" class="btn btn-secondary">Logout</a>
+                    <?php if ($userSuspension['suspension_type'] === 'temporary'): ?>
+                        <span class="suspension-countdown" data-until="<?php echo htmlspecialchars($userSuspension['suspended_until']); ?>">Time remaining: Calculating...</span>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+        
+        <style>
+        .user-suspension-container {
+            margin: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .suspension-alert {
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+            border-left: 6px solid;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            animation: suspensionSlideIn 0.6s ease-out;
+        }
+        
+        @keyframes suspensionSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-30px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .suspension-temporary {
+            background: linear-gradient(135deg, #fef3cd 0%, #fde68a 100%);
+            border-left-color: #f59e0b;
+            color: #92400e;
+            font-weight: 600;
+        }
+        
+        .suspension-permanent {
+            background: linear-gradient(135deg, #fecaca 0%, #f87171 100%);
+            border-left-color: #dc2626;
+            color: #7f1d1d;
+            font-weight: 700;
+        }
+        
+        .suspension-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            font-weight: 700;
+            font-size: 18px;
+        }
+        
+        .suspension-header i {
+            font-size: 20px;
+        }
+        
+        .suspension-date {
+            margin-left: auto;
+            font-size: 13px;
+            opacity: 0.8;
+            font-weight: normal;
+        }
+        
+        .suspension-content {
+            margin-bottom: 16px;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+        
+        .suspension-content p {
+            margin: 8px 0;
+            font-weight: 500;
+        }
+        
+        .suspension-footer {
+            font-size: 13px;
+            opacity: 0.9;
+            font-style: italic;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+        }
+        
+        .suspension-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .suspension-countdown {
+            font-weight: 600;
+            font-size: 14px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 6px;
+        }
+        
+        @media (max-width: 768px) {
+            .user-suspension-container {
+                margin: 12px;
+            }
+            
+            .suspension-alert {
+                padding: 20px;
+            }
+            
+            .suspension-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+            
+            .suspension-date {
+                margin-left: 0;
+            }
+            
+            .suspension-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+        </style>
+        
+        <script>
+        // Countdown timer for temporary suspensions
+        document.addEventListener('DOMContentLoaded', function() {
+            const countdownElement = document.querySelector('.suspension-countdown');
+            if (countdownElement) {
+                const suspendedUntil = new Date(countdownElement.getAttribute('data-until'));
+                
+                function updateCountdown() {
+                    const now = new Date();
+                    const timeLeft = suspendedUntil - now;
+                    
+                    if (timeLeft <= 0) {
+                        countdownElement.textContent = 'Suspension has expired. Please refresh the page.';
+                        countdownElement.style.background = 'rgba(16, 185, 129, 0.4)';
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3000);
+                        return;
+                    }
+                    
+                    const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                    
+                    let timeString = '';
+                    if (days > 0) timeString += days + 'd ';
+                    if (hours > 0) timeString += hours + 'h ';
+                    if (minutes > 0) timeString += minutes + 'm ';
+                    timeString += seconds + 's';
+                    
+                    countdownElement.textContent = 'Time remaining: ' + timeString;
+                }
+                
+                updateCountdown();
+                setInterval(updateCountdown, 1000);
+            }
+        });
+        </script>
+        
+        <!-- Prevent access to main content when suspended -->
+        <div style="text-align: center; padding: 40px; color: #6b7280;">
+            <i class="fas fa-lock" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+            <h3>Access Restricted</h3>
+            <p>Your account is currently suspended. Please review the suspension details above.</p>
+        </div>
+        
+        <?php require_once __DIR__ . '/../src/View/footer.php'; ?>
+        <?php exit(); // Prevent access to the rest of the page ?>
     <?php endif; ?>
     
     <!-- Post Composer Modal (for admins) -->
@@ -527,7 +885,7 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
               $pid = (int)($p['id'] ?? 0);
               $rx = $reactionController->getReactions($pid);
               $rxTotal = is_array($rx) ? count($rx) : 0;
-              $rxCounts = ['like'=>0,'haha'=>0,'heart'=>0,'sad'=>0,'angry'=>0];
+              $rxCounts = ['like'=>0,'haha'=>0,'heart'=>0,'sad'=>0,'angry'=>0,'wow'=>0];
               if (is_array($rx)) { foreach ($rx as $r0) { if (!empty($r0['type']) && isset($rxCounts[$r0['type']])) { $rxCounts[$r0['type']]++; } } }
 
               $comments = $commentController->getComments($pid);
@@ -546,23 +904,25 @@ if ($requestUri === '/login' && $requestMethod === 'POST') {
               echo '</div>';
               
               echo '<div class="post-actions">';
+              echo '<div class="reaction-container">';
               echo '<button class="action-btn reaction-trigger" data-post-id="'.$pid.'">';
-              echo '<i class="fas fa-thumbs-up"></i>';
-              echo '<span>Like</span>';
+              echo '<i class="fas fa-heart"></i>';
+              echo '<span>React</span>';
               echo '</button>';
-              echo '<button class="action-btn comment-btn" data-post-id="'.$pid.'">';
-              echo '<i class="fas fa-comment"></i>';
-              echo '<span>Comment</span>';
-              echo '</button>';
-              echo '</div>';
-              
-              // emoji picker for this post
+              // emoji picker for this post - now visible by default
               echo '<div class="emoji-picker" data-post-id="'.$pid.'" style="display:none">';
               echo '<span class="emoji" data-type="like" title="Like">👍</span>';
               echo '<span class="emoji" data-type="heart" title="Love">❤️</span>';
               echo '<span class="emoji" data-type="haha" title="Haha">😂</span>';
+              echo '<span class="emoji" data-type="wow" title="Wow">😮</span>';
               echo '<span class="emoji" data-type="sad" title="Sad">😢</span>';
               echo '<span class="emoji" data-type="angry" title="Angry">😡</span>';
+              echo '</div>';
+              echo '</div>';
+              echo '<button class="action-btn comment-btn" data-post-id="'.$pid.'">';
+              echo '<i class="fas fa-comment"></i>';
+              echo '<span>Comment</span>';
+              echo '</button>';
               echo '</div>';
               echo '</div>';
 
