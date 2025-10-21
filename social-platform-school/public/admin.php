@@ -106,6 +106,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
+        if (isset($_POST['edit_post'])) {
+            $postId = $_POST['post_id'] ?? null;
+            $title = $_POST['post_title'] ?? '';
+            $content = $_POST['post_content'] ?? '';
+            $result = $adminController->updatePost($postId, $title, $content);
+            if ($result) {
+                $_SESSION['admin_success'] = 'Post updated successfully.';
+            } else {
+                $_SESSION['admin_error'] = 'Failed to update post.';
+            }
+            header('Location: admin.php#posts');
+            exit();
+        }
+
         if (isset($_POST['delete_comment'])) {
             $result = $adminController->deleteCommentAdmin($_POST['comment_id']);
             if ($result) {
@@ -905,16 +919,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 By: <?php echo htmlspecialchars($post['user_name'] ?? 'Unknown User'); ?> | 
                                 <?php echo date('M j, Y \a\t g:i A', strtotime($post['created_at'])); ?>
                             </small>
-                            <button class="btn" type="button" 
-                                    onclick="showDeleteModal(<?php echo $post['id']; ?>, '<?php echo addslashes(htmlspecialchars($post['title'] ?? 'Untitled Post')); ?>')">
-                                <i class="fas fa-trash"></i> Delete Post
-                            </button>
+                            <div class="user-actions" style="margin-top:8px;gap:8px;display:flex;flex-wrap:wrap;">
+                                <button class="btn-warning" type="button" 
+                                        onclick="showEditPostModal(<?php echo $post['id']; ?>)">
+                                    <i class="fas fa-edit"></i> Edit Post
+                                </button>
+                                <button class="btn" type="button" 
+                                        onclick="showDeleteModal(<?php echo $post['id']; ?>, '<?php echo addslashes(htmlspecialchars($post['title'] ?? 'Untitled Post')); ?>')">
+                                    <i class="fas fa-trash"></i> Delete Post
+                                </button>
+                            </div>
                             
                             <!-- Hidden form for actual deletion -->
                             <form id="deleteForm<?php echo $post['id']; ?>" method="POST" style="display:none;">
                                 <input type="hidden" name="post_id" value="<?php echo $post['id']; ?>">
                                 <input type="hidden" name="delete_post" value="1">
                             </form>
+                            
+                            <!-- Hidden container with post data for editing -->
+                            <div id="postData<?php echo $post['id']; ?>" data-title="<?php echo htmlspecialchars($post['title'] ?? '', ENT_QUOTES); ?>" data-content="<?php echo htmlspecialchars($post['content'] ?? '', ENT_QUOTES); ?>" style="display:none"></div>
                             
                             <!-- Comments Section -->
                             <?php if (!empty($postComments[$post['id']])): ?>
@@ -960,15 +983,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <form method="POST">
                                 <input type="hidden" name="create_event" value="1">
                                 <div class="form-group">
-                                    <label for="event_title">Event Title:</label>
+                                    <label for="event_title" style="color:#111827">Event Title:</label>
                                     <input type="text" name="event_title" id="event_title" required>
                                 </div>
                                 <div class="form-group">
-                                    <label for="event_description">Description:</label>
+                                    <label for="event_description" style="color:#111827">Description:</label>
                                     <textarea name="event_description" id="event_description" rows="3"></textarea>
                                 </div>
                                 <div class="form-group">
-                                    <label for="event_date">Event Date & Time:</label>
+                                    <label for="event_date" style="color:#111827">Event Date & Time:</label>
                                     <input type="datetime-local" name="event_date" id="event_date" required>
                                 </div>
                                 <button type="submit" class="btn-warning">Create Event</button>
@@ -1135,6 +1158,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
     </div>
 
+    <!-- Edit Post Modal -->
+    <div id="editPostModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Post</h3>
+                <button type="button" onclick="closeModal('editPostModal')" style="float: right; background: none; border: none; font-size: 20px;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form method="POST">
+                    <input type="hidden" name="edit_post" value="1">
+                    <input type="hidden" name="post_id" id="edit_post_id" value="">
+                    <div class="form-group">
+                        <label for="edit_post_title">Title</label>
+                        <input type="text" name="post_title" id="edit_post_title" placeholder="Post title">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_post_content">Content</label>
+                        <textarea name="post_content" id="edit_post_content" rows="6" placeholder="Post content"></textarea>
+                    </div>
+                    <div style="text-align: right;">
+                        <button type="button" class="btn-cancel" onclick="closeModal('editPostModal')">Cancel</button>
+                        <button type="submit" class="btn-warning">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Comment Delete Confirmation Modal -->
     <div id="deleteCommentModal" class="delete-modal">
         <div class="delete-modal-content">
@@ -1164,6 +1215,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script>
         let currentDeletePostId = null;
         let currentDeleteCommentId = null;
+        
+        function showEditPostModal(postId) {
+            const dataEl = document.getElementById(`postData${postId}`);
+            const title = dataEl?.getAttribute('data-title') || '';
+            const content = dataEl?.getAttribute('data-content') || '';
+            document.getElementById('edit_post_id').value = postId;
+            document.getElementById('edit_post_title').value = title;
+            document.getElementById('edit_post_content').value = content;
+            document.getElementById('editPostModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
         
         function showDeleteModal(postId, postTitle) {
             currentDeletePostId = postId;

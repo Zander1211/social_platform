@@ -81,6 +81,32 @@ class AdminController
         return $stmt->execute([':id' => $postId]);
     }
 
+    public function updatePost($postId, $title, $content)
+    {
+        $postId = (int)$postId;
+        try {
+            // Detect modern vs legacy schema
+            $columns = $this->getTableColumns('posts');
+            if (in_array('title', $columns, true) && in_array('content', $columns, true)) {
+                $stmt = $this->pdo->prepare("UPDATE posts SET title = :title, content = :content, updated_at = NOW() WHERE id = :id");
+                return $stmt->execute([':title' => $title, ':content' => $content, ':id' => $postId]);
+            } elseif (in_array('caption', $columns, true)) {
+                // Legacy schema: only caption exists
+                $stmt = $this->pdo->prepare("UPDATE posts SET caption = :caption, updated_at = NOW() WHERE id = :id");
+                return $stmt->execute([':caption' => $content, ':id' => $postId]);
+            } else {
+                // Unknown schema; try content if exists
+                if (in_array('content', $columns, true)) {
+                    $stmt = $this->pdo->prepare("UPDATE posts SET content = :content, updated_at = NOW() WHERE id = :id");
+                    return $stmt->execute([':content' => $content, ':id' => $postId]);
+                }
+            }
+        } catch (PDOException $e) {
+            return false;
+        }
+        return false;
+    }
+
     public function getAllEvents()
     {
         // Try extended schema (location, banner_path); fallback if columns don't exist

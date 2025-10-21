@@ -510,6 +510,13 @@ a:hover {
   padding: var(--space-md) var(--space-sm);
   border: none;
   background: transparent;
+  /* ensure input text is readable even when header is dark */
+  color: var(--text-primary);
+}
+
+.search-input::placeholder {
+  color: var(--text-tertiary);
+  opacity: 1;
   font-size: 0.95rem;
   outline: none;
 }
