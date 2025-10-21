@@ -5,7 +5,7 @@ echo "Creating missing password_reset_tokens table...\n\n";
 
 // Direct database connection (using same config as your app)
 $host = '127.0.0.1';
-$port = 3306;
+$port = 3307;
 $dbname = 'social_platform';
 $username = 'root';
 $password = '';

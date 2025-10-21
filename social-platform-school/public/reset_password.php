@@ -46,7 +46,6 @@ $tokenValid = ($tokenValidation['status'] === 'success');
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   // Clear any GET-related error so we validate the submitted token below
   $error = null;
-  $otpInput = trim($_POST['otp'] ?? '');
   $password = $_POST['password'] ?? '';
   $confirmPassword = $_POST['confirm_password'] ?? '';
 
@@ -60,25 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errorDetails = $tokenValidation['details'] ?? '';
   }
 
-  // Require OTP verification before password change
-  if (!$error) {
-    if (empty($otpInput)) {
-      $error = 'Please enter the OTP code that was sent to your email.';
-    } else {
-      $emailForOtp = $tokenValidation['email'] ?? null;
-      if (!$emailForOtp) {
-        $error = 'Unable to verify OTP: missing email for token.';
-      } else {
-        $verify = $auth->verifyOTP($emailForOtp, $otpInput);
-        if ($verify['status'] !== 'success') {
-          $error = $verify['message'] ?? 'Invalid OTP code';
-          $errorDetails = $verify['details'] ?? '';
-        }
-      }
-    }
-  }
+  $emailForToken = $tokenValidation['email'] ?? null;
 
-  // If OTP verified, validate passwords and reset
   if (!$error) {
     if (empty($password)) {
       $error = 'Please enter a new password';
@@ -112,9 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Georgia:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    /* Page-scoped override: make sure the OTP and token inputs are visible
-       in case global CSS hides inputs for other layouts. */
-    #otp, #token_input, .form-input {
+    /* Keep token inputs visible even if global styles hide inputs elsewhere. */
+    #token_input, .form-input {
       display: block !important;
       visibility: visible !important;
       opacity: 1 !important;
@@ -544,20 +525,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               </div>
             <?php endif; ?>
             <div class="form-group">
-              <label for="otp" class="form-label">OTP Code</label>
-              <input
-                type="text"
-                id="otp"
-                name="otp"
-                class="form-input"
-                placeholder="Enter the 6-digit code sent to your email"
-                required
-                pattern="\d{6}"
-                inputmode="numeric"
-              />
-              <div class="form-hint" style="font-size:0.9rem;color:var(--text-muted);margin-top:6px">If you didn't receive the code, check your spam folder or request a new password reset.</div>
-            </div>
-
             <div class="form-group">
               <label for="password" class="form-label">New Password</label>
               <input 
@@ -633,14 +600,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
 
       // Focus OTP input if present
-      const otpInput = document.getElementById('otp');
-      if (otpInput) {
-        otpInput.focus();
-        // allow only digits
-        otpInput.addEventListener('input', function() {
-          this.value = this.value.replace(/[^0-9]/g, '').slice(0,6);
-        });
-      }
       
       if (form && submitButton && buttonText) {
         form.addEventListener('submit', function(e) {

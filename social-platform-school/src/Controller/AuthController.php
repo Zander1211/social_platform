@@ -298,21 +298,27 @@ class AuthController
             // Create OTP table if it doesn't exist
             $this->ensureOTPTableExists();
             
+            error_log("storeOTP called for email: $email, otp: $otp");
+            
             // Store OTP with 10-minute expiration
             $stmt = $this->pdo->prepare('
                 INSERT INTO password_reset_otps (email, otp, expires_at) 
                 VALUES (:email, :otp, :expires_at)
                 ON DUPLICATE KEY UPDATE 
-                otp = :otp, expires_at = :expires_at, created_at = NOW()
+                otp = :otp_update, expires_at = :expires_update, created_at = NOW()
             ');
             
             $expiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));
             
-            $stmt->execute([
+            $result = $stmt->execute([
                 ':email' => $email,
                 ':otp' => $otp,
-                ':expires_at' => $expiresAt
+                ':expires_at' => $expiresAt,
+                ':otp_update' => $otp,
+                ':expires_update' => $expiresAt
             ]);
+            
+            error_log("storeOTP execute result: " . ($result ? 'true' : 'false') . ", rowCount: " . $stmt->rowCount());
             
         } catch (PDOException $e) {
             error_log('Failed to store OTP: ' . $e->getMessage());
