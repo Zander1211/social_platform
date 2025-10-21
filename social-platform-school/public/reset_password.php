@@ -599,8 +599,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         });
       }
 
-      // Focus OTP input if present
-      
       if (form && submitButton && buttonText) {
         form.addEventListener('submit', function(e) {
           // Add loading state
